@@ -1,5 +1,6 @@
 import asyncio
 import datetime
+from typing import Dict, List, Any
 
 from googleapiclient.discovery import build
 import dateutil.parser
@@ -11,11 +12,13 @@ from redbot.core.utils.chat_formatting import humanize_timedelta
 
 
 class GoogleCalendar:
-    def __init__(self, credentials, channel_mapping,
-                 fallback_channel=None, refresh_interval=20, timezone='Europe/Berlin'):
+    def __init__(self, credentials: Any, channel_mapping: Any,
+                 fallback_channel: discord.TextChannel = None,
+                 refresh_interval: int = 20, timezone: str = 'Europe/Berlin'):
+
         self.timezone = pytz.timezone(timezone)
         self.service = build('calendar', 'v3', credentials=credentials)
-        self.channel_mapping = dict(channel_mapping)
+        self.channel_mapping = channel_mapping
         self.fallback_channel = fallback_channel
 
         self.reminders = []
@@ -26,7 +29,7 @@ class GoogleCalendar:
         self.update_reminders = tasks.loop(seconds=20)(self.update_reminders)
         self.update_reminders.start()
 
-    async def refresh(self):
+    async def refresh(self) -> None:
         # Fetch the next 5 entries per calendar
         loop = asyncio.get_running_loop()
         raw_entries = await loop.run_in_executor(None, self.fetch_entries)
@@ -56,17 +59,18 @@ class GoogleCalendar:
                 return
             self.reminders.append(Reminder(entry, channel, self.timezone))
 
-    async def update_reminders(self):
+    async def update_reminders(self) -> None:
         for reminder in self.reminders:
             await reminder.update()
 
-    def fetch_entries(self, limit=5, max_seconds_until_remind=300):
+    def fetch_entries(self, limit: int = 2, max_seconds_until_remind: int = 300) -> List:
         # TODO: warum nur einträge mit remindern in 5 minuten oder weniger?
         """ Fetches upcoming calendar entries
 
         Parameters
         ----------
         limit:  The maximum amount of calendar entries fetched per calendar
+        max_seconds_until_remind:
         Returns
         -------
         A flattened list of calendar entries
@@ -90,60 +94,9 @@ class GoogleCalendar:
         return events
 
 
-class Reminder:
-    def __init__(self, entry, channel, timezone):
-        self.entry = entry
-        self.channel = channel
-        self.timezone = timezone
-
-        self.id = self.entry.id
-        self.updated = self.entry.updated
-
-        self.message = None
-        self.embed = self.entry.generate_embed()
-
-    async def update(self):
-        now = datetime.datetime.now(self.timezone)
-
-        if self.entry.event_end <= now:
-            await self.delete_message()
-
-        elif self.entry.reminder_start <= now:
-            self.set_embed_title()
-            if self.message:
-                await self.update_message()
-            else:
-                self.message = await self.channel.send(embed=self.embed)
-
-        elif self.message:
-            await self.delete_message()
-
-    async def delete_message(self):
-        try:
-            await self.message.delete()
-            self.message = None
-        except discord.NotFound:
-            pass
-
-    async def update_message(self):
-        try:
-            await self.message.edit(embed=self.embed)
-        except discord.NotFound:
-            pass
-
-    async def update_reminder(self, entry):
-        self.entry = entry
-        self.embed = entry.generate_embed()
-        await self.update()
-
-    def set_embed_title(self):
-        time_until_event = self.entry.event_start - datetime.datetime.now(self.timezone)
-        self.embed.title = f'**{self.entry.calendar_name}**:  ' \
-                           f'{self.entry.summary} {humanize_timedelta(timedelta=time_until_event)}'
-
-
 class CalendarEntry:
-    def __init__(self, raw_entry, timezone):
+    def __init__(self, raw_entry: Dict, timezone: pytz.timezone):
+
         self.updated = dateutil.parser.parse(raw_entry['updated']).astimezone(timezone)
 
         # mandatory
@@ -177,7 +130,7 @@ class CalendarEntry:
         else:
             self.colour = discord.Colour(0x000000)
 
-    def generate_embed(self):
+    def generate_embed(self) -> discord.Embed:
         embed = discord.Embed(description=self.description, colour=self.colour)
 
         if self.location:
@@ -193,7 +146,7 @@ class CalendarEntry:
         return embed
 
 
-def parse_time(time, timezone):
+def parse_time(time: Dict, timezone: datetime.tzinfo):
     if 'dateTime' in time:
         return dateutil.parser.parse(time['dateTime']).astimezone(timezone)
     elif 'date' in time:
@@ -202,7 +155,7 @@ def parse_time(time, timezone):
         print("EITBOT: No date or dateTime key in entry dict recieved from Google Calendar API. Ignoring entry.")
 
 
-def format_time(dt):
+def format_time(dt) -> str:
     if dt < datetime.timedelta(seconds=0):
         output = 'seit'
     else:
@@ -214,10 +167,63 @@ def format_time(dt):
     return f'{output} {dt.days}:{hours}:{minutes}'
 
 
-def parse_remind_time(raw_entry, timezone):
+def parse_remind_time(raw_entry: Dict, timezone: datetime.tzinfo):
     """Returns the time when the entries reminder should fire as a dateime object."""
     if 'reminders' in raw_entry and 'overrides' in raw_entry['reminders']:
         remind_minutes = raw_entry['reminders']['overrides'][0]['minutes']
     else:
         remind_minutes = 30
     return parse_time(raw_entry['start'], timezone) - datetime.timedelta(minutes=remind_minutes)
+
+
+class Reminder:
+    def __init__(self, entry: CalendarEntry, channel: discord.TextChannel, timezone: datetime.tzinfo):
+
+        self.entry = entry
+        self.channel = channel
+        self.timezone = timezone
+
+        self.id = self.entry.id
+        self.updated = self.entry.updated
+
+        self.message = None
+        self.embed = self.entry.generate_embed()
+
+    async def update(self) -> None:
+        now = datetime.datetime.now(self.timezone)
+
+        if self.entry.event_end <= now:
+            await self.delete_message()
+
+        elif self.entry.reminder_start <= now:
+            self.set_embed_title()
+            if self.message:
+                await self.update_message()
+            else:
+                self.message = await self.channel.send(embed=self.embed)
+
+        elif self.message:
+            await self.delete_message()
+
+    async def delete_message(self) -> None:
+        try:
+            await self.message.delete()
+            self.message = None
+        except discord.NotFound:
+            pass
+
+    async def update_message(self) -> None:
+        try:
+            await self.message.edit(embed=self.embed)
+        except discord.NotFound:
+            pass
+
+    async def update_reminder(self, entry: CalendarEntry) -> None:
+        self.entry = entry
+        self.embed = entry.generate_embed()
+        await self.update()
+
+    def set_embed_title(self) -> None:
+        time_until_event = self.entry.event_start - datetime.datetime.now(self.timezone)
+        self.embed.title = f'**{self.entry.calendar_name}**:  ' \
+                           f'{self.entry.summary} {humanize_timedelta(timedelta=time_until_event)}'

@@ -1,4 +1,8 @@
+from __future__ import annotations
 import logging
+from typing import List
+
+
 import discord
 
 from .userinput import UserInput
@@ -24,7 +28,7 @@ setup_name_error = discord.Embed(description="Hoppla!\n"
                                  title="Setup")
 
 
-def setup_group_select(name, semesters):
+def setup_group_select(name: str, semesters: List) -> discord.Embed:
     embed = discord.Embed(description=f'Hallo **{name}**!\n'
                                       f'Antworte jetzt noch mit deiner Studiengruppe, '
                                       f'um dieses Setup abzuschließen.\n\n'
@@ -45,7 +49,7 @@ def setup_group_select(name, semesters):
     return embed
 
 
-def setup_group_error(message):
+def setup_group_error(message: str) -> discord.Embed:
     embed = discord.Embed(description=f'Hoppla!\n'
                                       f'Wie es scheint, ist "{message}" keine gültige Studiengruppe.\n'
                                       f'Probiere es bitte nochmal mit einer Studiengruppe aus der Liste!\n',
@@ -54,7 +58,7 @@ def setup_group_error(message):
     return embed
 
 
-def setup_end(study_group_name):
+def setup_end(study_group_name: str) -> discord.Embed:
     embed = discord.Embed(description=f'Vielen Dank für die Einschreibung in unseren EIT-Server.\n'
                                       f'Du wurdest der Gruppe **{study_group_name}** zugewiesen.\n\n'
                                       f'Hiermit hast du das Setup abgeschlossen und deine Angaben\n'
@@ -66,7 +70,7 @@ def setup_end(study_group_name):
     return embed
 
 
-def is_valid(name):
+def is_valid(name: str) -> bool:
     """Checks if the typed in name is valid"""
     if len(name) > 32 or not all(x.isalpha() or x.isspace() for x in name):
         return False
@@ -74,7 +78,7 @@ def is_valid(name):
         return True
 
 
-async def setup_dialog(eitcog, member):
+async def setup_dialog(eitcog, member: [discord.Member, discord.User]) -> None:
     try:
         await member.send(embed=setup_start)
     except (AttributeError, discord.HTTPException):
@@ -83,9 +87,9 @@ async def setup_dialog(eitcog, member):
     # loop until User tiped in a valid name
     while True:
         answer = await UserInput.userinput(eitcog, member, member.dm_channel)
-        if answer.startswith(eitcog.bot.command_prefix):
+        if answer[1:] in eitcog.bot.all_commands.keys():
             return
-        if is_valid(answer):
+        elif is_valid(answer):
             break
         else:
             await member.send(embed=setup_name_error)
@@ -103,7 +107,7 @@ async def setup_dialog(eitcog, member):
 
     while flag:
         answer = await UserInput.userinput(eitcog, member, member.dm_channel)
-        if answer.startswith(eitcog.bot.command_prefix):
+        if answer[1:] in eitcog.bot.all_commands.keys():
             return
         if answer.upper() == 'GAST':
             await remove_groups(eitcog, member)
@@ -133,7 +137,7 @@ async def setup_dialog(eitcog, member):
             await member.send(embed=setup_group_error(answer))
 
 
-async def remove_groups(eitcog, member):
+async def remove_groups(eitcog, member: discord.Member) -> None:
     for role in member.roles:
         if role in [group.role for group in eitcog.groups]:
             await member.remove_roles(role)
