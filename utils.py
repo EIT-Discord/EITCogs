@@ -1,7 +1,4 @@
-import asyncio
-
 import discord
-from redbot.core import commands
 
 
 async def toggle_role(member: discord.Member, role: discord.Role) -> None:
@@ -12,16 +9,6 @@ async def toggle_role(member: discord.Member, role: discord.Role) -> None:
     else:
         await member.add_roles(role)
         await member.send(f'Du hast die Rolle **{role.name}** erhalten!')
-
-
-def is_admin() -> bool:
-    """Checks if the member who invoked the command has administrator permissions on this server"""
-    async def predicate(context: commands.context):
-        try:
-            return context.author.guild_permissions.administrator
-        except AttributeError:
-            return False
-    return commands.check(predicate)
 
 
 async def send_more(messageable: discord.object, content: str) -> None:
@@ -42,7 +29,7 @@ def codeblock(string: str) -> str:
     return f'```{string}```'
 
 
-def get_member(guild: discord.Guild, user: discord.User) -> discord.Member:
+def get_member(guild: discord.Guild, user: [discord.User, discord.Member]) -> discord.Member:
     return discord.utils.get(guild.members, id=user.id)
 
 

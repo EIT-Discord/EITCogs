@@ -1,5 +1,4 @@
 from __future__ import annotations
-
 import asyncio
 import os
 import pickle
@@ -13,8 +12,9 @@ from redbot.core import commands
 from redbot.core.bot import Red
 from typing import List, Any
 
+from .userinput import UserInput
 from .calendar import GoogleCalendar
-from .setup import setup_dialog
+from .setup import setup_dialog, semester_start_dialog
 from .utils import get_member, toggle_role, codeblock
 from .configvalidator import validate
 
@@ -159,6 +159,11 @@ class EitCogs(commands.Cog):
         await setup_dialog(self, member)
 
     @commands.command()
+    async def semester_start(self, context: commands.context) -> None:
+        member = get_member(self.guild, context.author)
+        await semester_start_dialog(self, member)
+
+    @commands.command()
     async def admin(self, context: commands.context) -> None:
         embed = discord.Embed(name='Admins')
         admin_dict = {"Yannic": "Yannic Breiting (Der Grüne)",
@@ -176,13 +181,36 @@ class EitCogs(commands.Cog):
                     embed.add_field(name=description, value=str(emoji), inline=False)
         await context.channel.send(embed=embed)
 
+    # @commands.command()
+    # async def poll(self, context: commands.context, channel: discord.TextChannel = None):
+    #     await context.channel.send('Die Umfrage wird jetzt vorbereitet, gib deine Fragen im Dialog an!')
+    #     questions = []
+    #     while True:
+    #         message = await UserInput.userinput(self, get_member(self.guild, context.author), context.author.dm_channel)
+    #         if message.lower() in ['stop', 'end', 'aufhören', 'fertig']:
+    #             output = ''
+    #             for question in questions:
+    #                 output += question + 'n'
+    #             await context.channel.send(f'Deine Fragen lauten wie folgt: {output}')
+    #         else:
+    #             while True:
+    #                 await context.channel.send(f'Ist die Frage {message} so richtig?')
+    #                 answer = await UserInput.userinput(self, get_member(self.guild, context.author), context.author.dm_channel)
+    #                 if answer.lower() in ['nein', 'no', 'n']:
+    #                     await context.channel.send('Gib deine Frage erneut ein!')
+    #                     message = await UserInput.userinput(self, context.member, context.member.dm_channel)
+    #                 else:
+    #                     break
+    #             questions.append(message)
+
     @commands.admin()
     @commands.command()
     async def broadcast(self, context: commands.context, roles: commands.Greedy[discord.Role],
                         channel: typing.Optional[discord.TextChannel] = None,
                         command=None):
 
-        commands = {"setup": setup_dialog}
+        available_commands = {'setup': setup_dialog,
+                              'semesterstart': semester_start_dialog}
 
         receiver = []
         if roles:
@@ -196,7 +224,7 @@ class EitCogs(commands.Cog):
         if command in commands:
             for member in receiver:
                 try:
-                    asyncio.create_task(commands[command](self.bot, member))
+                    asyncio.create_task(available_commands[command](self, member))
                 except (AttributeError, discord.HTTPException):
                     print('Kein DM-Channel - Vermutlich ein Bot')
 

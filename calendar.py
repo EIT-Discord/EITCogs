@@ -14,7 +14,7 @@ from redbot.core.utils.chat_formatting import humanize_timedelta
 class GoogleCalendar:
     def __init__(self, credentials: Any, channel_mapping: Any,
                  fallback_channel: discord.TextChannel = None,
-                 refresh_interval: int = 20, timezone: str = 'Europe/Berlin'):
+                 refresh_interval: int = 60, timezone: str = 'Europe/Berlin'):
 
         self.timezone = pytz.timezone(timezone)
         self.service = build('calendar', 'v3', credentials=credentials)
@@ -63,7 +63,7 @@ class GoogleCalendar:
         for reminder in self.reminders:
             await reminder.update()
 
-    def fetch_entries(self, limit: int = 2, max_seconds_until_remind: int = 300) -> List:
+    def fetch_entries(self, limit: int = 5, max_seconds_until_remind: int = 300) -> List:
         # TODO: warum nur einträge mit remindern in 5 minuten oder weniger?
         """ Fetches upcoming calendar entries
 
@@ -155,16 +155,16 @@ def parse_time(time: Dict, timezone: datetime.tzinfo):
         print("EITBOT: No date or dateTime key in entry dict recieved from Google Calendar API. Ignoring entry.")
 
 
-def format_time(dt) -> str:
-    if dt < datetime.timedelta(seconds=0):
+def format_time(td: datetime.timedelta) -> str:
+    if td < datetime.timedelta(seconds=0):
         output = 'seit'
     else:
         output = 'in'
 
-    hours, remainder = divmod(dt.seconds, 3600)
+    hours, remainder = divmod(td.seconds, 3600)
     minutes, seconds = divmod(remainder, 60)
 
-    return f'{output} {dt.days}:{hours}:{minutes}'
+    return f'{output} {td.days}:{hours}:{minutes}'
 
 
 def parse_remind_time(raw_entry: Dict, timezone: datetime.tzinfo):

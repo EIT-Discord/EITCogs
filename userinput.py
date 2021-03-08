@@ -10,9 +10,9 @@ ongoing = []
 
 
 class UserInput:
-    def __init__(self, eitcog, user: discord.User, channel: discord.TextChannel):
+    def __init__(self, eitcog, member: discord.Member, channel: discord.TextChannel):
         self.eitcog = eitcog
-        self.member = get_member(eitcog.guild, user)
+        self.member = get_member(eitcog.guild, member)
         self.channel = channel
         self.queue = asyncio.Queue()
 
@@ -31,7 +31,7 @@ class UserInput:
             await self.queue.put(message)
 
     @classmethod
-    async def userinput(cls, eitcog, user: discord.User, channel: discord.TextChannel) -> str:
+    async def userinput(cls, eitcog, user: [discord.User, discord.Member], channel: discord.TextChannel) -> str:
         new_ui = cls(eitcog, user, channel)
 
         # check if ongoing userinput already exists for given member and channel
