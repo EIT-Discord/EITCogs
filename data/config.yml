@@ -1,0 +1,47 @@
+server: 783621156967809044
+
+roles:
+  - Gast
+  - Student
+  - Gamer
+
+channels:
+  - kalender
+  - hm-feed
+
+semesters:
+  1:
+    - BAC1A
+    - BAC1B
+
+  2:
+    - BAC2A
+    - BAC2B
+    - BAC2C
+    - BAC2D
+    - 2W
+
+  3:
+    - EIB3A
+    - RE/EM3
+
+  4:
+    - EIB4A
+    - EIB4B
+    - REB4A
+    - EMB4A
+    - 4W
+
+  5:
+    - B5P
+
+  6:
+    - EIB6A
+    - EIB6B
+    - REB6
+    - EMB6
+
+  7:
+    - EIB7A
+    - REB7
+    - EMB7
