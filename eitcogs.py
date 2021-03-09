@@ -1,3 +1,4 @@
+from __future__ import annotations
 import asyncio
 import os
 import pickle
@@ -9,18 +10,19 @@ from google_auth_oauthlib.flow import InstalledAppFlow
 
 from redbot.core import commands
 from redbot.core.bot import Red
+from typing import List, Any
 
+from .userinput import UserInput
 from .calendar import GoogleCalendar
-from .setup import setup_dialog
+from .setup import setup_dialog, semester_start_dialog
 from .utils import get_member, toggle_role, codeblock
 from .configvalidator import validate
-
 
 RequestType = typing.Literal["discord_deleted_user", "owner", "user", "user_strict"]
 SCOPES = ['https://www.googleapis.com/auth/calendar.readonly']
 
 
-def get_obj_by_name(name, dc_obj):
+def get_obj_by_name(name: str, dc_obj: discord.object) -> discord.object:
     obj = discord.utils.get(dc_obj, name=name)
     if not obj:
         print(f'EITBOT: {name} not found in guild!')
@@ -28,7 +30,7 @@ def get_obj_by_name(name, dc_obj):
         return obj
 
 
-def get_google_creds():
+def get_google_creds(creds: Any = None) -> Any:
     if os.path.exists('./data/token.pickle'):
         with open('./data/token.pickle', 'rb') as token:
             creds = pickle.load(token)
@@ -54,8 +56,8 @@ class EitCogs(commands.Cog):
     A short description of the cog.
     """
 
-    def __init__(self, bot: Red, *args, **kwargs) -> None:
-        super().__init__(*args, **kwargs)
+    def __init__(self, bot: Red):
+        super().__init__()
         self.bot = bot
 
         try:
@@ -75,15 +77,16 @@ class EitCogs(commands.Cog):
         self.bot.add_listener(self.on_member_join)
 
         channel_mapping = {group.name: group.semester.channel for group in self.groups}
+
         self.calendar = GoogleCalendar(get_google_creds(), channel_mapping, fallback_channel=self.channels['kalender'])
 
-    async def on_member_join(self, member):
+    async def on_member_join(self, member: discord.Member) -> None:
         await setup_dialog(self, member)
 
-    def is_student(self):
+    def is_student(self) -> bool:
         """Checks if the member who invoked the command has administrator permissions on this server"""
 
-        async def predicate(context):
+        async def predicate(context: commands.context) -> bool:
             try:
                 return self.roles['student'] in context.author.roles
             except AttributeError:
@@ -91,7 +94,7 @@ class EitCogs(commands.Cog):
 
         return commands.check(predicate)
 
-    def parse_config(self):
+    def parse_config(self) -> None:
         # parse guild
         for guild in self.bot.guilds:
             if self.config['server'] == guild.id:
@@ -140,19 +143,28 @@ class EitCogs(commands.Cog):
         await super().red_delete_data_for_user(requester=requester, user_id=user_id)
 
     @commands.command()
-    async def gamer(self, context):
-        """Erhalte/Entferne die Rolle Gamer"""
-        member = get_member(self.guild, context.author)
-        await toggle_role(member, self.roles['gamer'])
+    async def config(self, context: commands.context) -> None:
+        await context.send(codeblock(str(self)))
 
     @commands.command()
-    async def setup(self, context):
+    async def gamer(self, context: commands.context) -> None:
+        """Erhalte/Entferne die Rolle Gamer"""
+        member = get_member(self.guild, context.author)
+        await toggle_role(member, self.roles['Gamer'])
+
+    @commands.command()
+    async def setup(self, context: commands.context) -> None:
         """Startet den Setup-Dialog"""
         member = get_member(self.guild, context.author)
         await setup_dialog(self, member)
 
     @commands.command()
-    async def admin(self, context):
+    async def semester_start(self, context: commands.context) -> None:
+        member = get_member(self.guild, context.author)
+        await semester_start_dialog(self, member)
+
+    @commands.command()
+    async def admin(self, context: commands.context) -> None:
         embed = discord.Embed(name='Admins')
         admin_dict = {"Yannic": "Yannic Breiting (Der Grüne)",
                       "Elias": "Elias Deking (The Brain)",
@@ -169,13 +181,36 @@ class EitCogs(commands.Cog):
                     embed.add_field(name=description, value=str(emoji), inline=False)
         await context.channel.send(embed=embed)
 
+    # @commands.command()
+    # async def poll(self, context: commands.context, channel: discord.TextChannel = None):
+    #     await context.channel.send('Die Umfrage wird jetzt vorbereitet, gib deine Fragen im Dialog an!')
+    #     questions = []
+    #     while True:
+    #         message = await UserInput.userinput(self, get_member(self.guild, context.author), context.author.dm_channel)
+    #         if message.lower() in ['stop', 'end', 'aufhören', 'fertig']:
+    #             output = ''
+    #             for question in questions:
+    #                 output += question + 'n'
+    #             await context.channel.send(f'Deine Fragen lauten wie folgt: {output}')
+    #         else:
+    #             while True:
+    #                 await context.channel.send(f'Ist die Frage {message} so richtig?')
+    #                 answer = await UserInput.userinput(self, get_member(self.guild, context.author), context.author.dm_channel)
+    #                 if answer.lower() in ['nein', 'no', 'n']:
+    #                     await context.channel.send('Gib deine Frage erneut ein!')
+    #                     message = await UserInput.userinput(self, context.member, context.member.dm_channel)
+    #                 else:
+    #                     break
+    #             questions.append(message)
+
     @commands.admin()
     @commands.command()
-    async def broadcast(self, context, roles: commands.Greedy[discord.Role],
+    async def broadcast(self, context: commands.context, roles: commands.Greedy[discord.Role],
                         channel: typing.Optional[discord.TextChannel] = None,
                         command=None):
 
-        commands = {"setup": setup_dialog}
+        available_commands = {'setup': setup_dialog,
+                              'semesterstart': semester_start_dialog}
 
         receiver = []
         if roles:
@@ -184,30 +219,40 @@ class EitCogs(commands.Cog):
                     for member in role.members:
                         receiver.append(member)
         else:
-            context.send('Es muss eine Rolle angegeben werden!')
+            await context.send('Es muss eine Rolle angegeben werden!')
 
         if command in commands:
             for member in receiver:
                 try:
-                    asyncio.create_task(commands[command](self.bot, member))
+                    asyncio.create_task(available_commands[command](self, member))
                 except (AttributeError, discord.HTTPException):
                     print('Kein DM-Channel - Vermutlich ein Bot')
 
     @commands.command()
-    async def ongoing(self, context):
+    async def ongoing(self, context: commands.context) -> None:
         """Zeigt alle laufenden Termine an"""
         output = ''
         if not self.calendar.reminders:
             await context.channel.send('Es gibt momentan keine laufenden Termine!')
         else:
             for reminder in self.calendar.reminders:
-                if reminder.is_running:
-                    output += f'{reminder.calendar_name}: {reminder.summary}\n'
+                if reminder.entry:
+                    output += f'{reminder.entry.calendar_name}: {reminder.entry.summary}\n'
             await context.channel.send(codeblock(output))
 
 
+class Group:
+    def __init__(self, name: str, role: discord.Role, semester: Semester):
+        self.name = name
+        self.semester = semester
+        self.role = role
+
+    def __str__(self) -> str:
+        return self.name
+
+
 class Semester:
-    def __init__(self, year, channel=None, groups=None):
+    def __init__(self, year: int, channel: discord.TextChannel = None, groups: List[Group] = None):
         self.year = year
         self.channel = channel
         if groups:
@@ -215,18 +260,8 @@ class Semester:
         else:
             self.groups = []
 
-    def __str__(self):
+    def __str__(self) -> str:
         return f'{self.year}.Semester'
 
-    def __contains__(self, item):
+    def __contains__(self, item: Group) -> bool:
         return item in self.groups
-
-
-class Group:
-    def __init__(self, name, role, semester):
-        self.name = name
-        self.semester = semester
-        self.role = role
-
-    def __str__(self):
-        return self.name
