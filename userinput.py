@@ -39,3 +39,18 @@ class UserInput:
         answer = await new_ui.queue.get()
         new_ui.delete()
         return answer.content
+
+
+async def userinput_loop(eitcog, member, channel, filterfunc=None, max_repetitions=10, error_embed=None):
+    counter = 0
+    while counter < (max_repetitions+1):
+        answer = await UserInput.userinput(eitcog, member, channel)
+        await eitcog.bot.command_prefix(eitcog.bot, eitcog.message)
+        if answer.startswith(eitcog.bot.command_prefix):
+            return
+        if filterfunc(answer):
+            return answer
+        elif error_embed:
+            await member.send(embed=error_embed)
+
+        counter += 1
