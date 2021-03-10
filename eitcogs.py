@@ -89,6 +89,17 @@ class EitCogs(commands.Cog):
 
         return commands.check(_is_student)
 
+    def is_admin(self) -> bool:
+        """Checks if the member who invoked the command has administrator permissions on this server"""
+
+        async def _is_admin(context: commands.context):
+            try:
+                return self.roles['Admin'] in context.author.roles
+            except AttributeError:
+                return False
+
+        return commands.check(_is_admin)
+
     def parse_config(self) -> None:
         # parse guild
         try:
@@ -196,7 +207,6 @@ class EitCogs(commands.Cog):
                 poll.append(message)
                 await context.channel.send(f'Deine Eingabe lauten wie folgt: {message} - einverstanden?')
 
-    @commands.admin()
     @commands.command()
     async def broadcast(self, context: commands.context, roles: commands.Greedy[discord.Role],
                         channel: typing.Optional[discord.TextChannel] = None,

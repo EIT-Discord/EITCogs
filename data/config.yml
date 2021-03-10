@@ -4,6 +4,7 @@ roles:
   - Gast
   - Student
   - Gamer
+  - Admin
 
 channels:
   - kalender
