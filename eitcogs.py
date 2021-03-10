@@ -217,7 +217,7 @@ class EitCogs(commands.Cog):
                 try:
                     asyncio.create_task(available_commands[command](self, member))
                 except (AttributeError, discord.HTTPException):
-                    print('Kein DM-Channel - Vermutlich ein Bot')
+                    print(f'Memberid: {member.id} - Kein DM-Channel - Vermutlich ein Bot')
 
     @commands.check(is_student)
     @commands.command()
