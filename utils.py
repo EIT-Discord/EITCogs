@@ -40,3 +40,11 @@ def add_quicklinks(embed: discord.Embed) -> discord.Embed:
                           "*[Moodle](https://moodle.hm.edu/my)*   |  "
                           "*[Primuss](https://www3.primuss.de/cgi-bin/login/index.pl?FH=fhm)*")
     return embed
+
+
+def get_obj_by_name(name: str, dc_obj: discord.object) -> discord.object:
+    obj = discord.utils.get(dc_obj, name=name)
+    if not obj:
+        print(f'EITBOT: {name} not found in guild!')
+    else:
+        return obj
