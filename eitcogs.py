@@ -56,8 +56,8 @@ class EitCogs(commands.Cog):
     A short description of the cog.
     """
 
-    def __init__(self, bot: Red):
-        super().__init__()
+    def __init__(self, bot: Red, *args, **kwargs):
+        super().__init__(*args, **kwargs)
         self.bot = bot
 
         try:
@@ -78,7 +78,7 @@ class EitCogs(commands.Cog):
 
         channel_mapping = {group.name: group.semester.channel for group in self.groups}
 
-        self.calendar = GoogleCalendar(get_google_creds(), channel_mapping, fallback_channel=self.channels['kalender'])
+        # self.calendar = GoogleCalendar(get_google_creds(), channel_mapping, fallback_channel=self.channels['kalender'])
 
     async def on_member_join(self, member: discord.Member) -> None:
         await setup_dialog(self, member)
@@ -243,6 +243,7 @@ class EitCogs(commands.Cog):
 
 class Group:
     def __init__(self, name: str, role: discord.Role, semester: Semester):
+        super().__init__()
         self.name = name
         self.semester = semester
         self.role = role
@@ -253,6 +254,7 @@ class Group:
 
 class Semester:
     def __init__(self, year: int, channel: discord.TextChannel = None, groups: List[Group] = None):
+        super().__init__()
         self.year = year
         self.channel = channel
         if groups:

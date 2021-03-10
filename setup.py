@@ -4,7 +4,8 @@ from typing import List
 
 import discord
 
-from .userinput import UserInput
+from .userinput import userinput_loop, is_valid_name
+from .utils import get_user
 
 setup_start = discord.Embed(description="Willkommen auf unserem Elektrotechnik Discord Server!\n\n"
                                         "Dieses Setup ist dafür da, damit wir und deine Kommilitonen "
@@ -93,35 +94,18 @@ def setup_end(study_group_name: str) -> discord.Embed:
     return embed
 
 
-def is_valid(name: str) -> bool:
-    """Checks if the typed in name is valid"""
-    if len(name) > 32 or not all(x.isalpha() or x.isspace() for x in name):
-        return False
-    else:
-        return True
-
-
 async def setup_dialog(eitcog, member: discord.Member) -> None:
     try:
         await member.send(embed=setup_start)
     except (AttributeError, discord.HTTPException):
         return
-
-    # loop until User tiped in a valid name
-    while True:
-        answer = await UserInput.userinput(eitcog, member, member.dm_channel)
-        if answer[1:] in eitcog.bot.all_commands.keys():
-            return
-        elif is_valid(answer):
-            break
-        else:
-            await member.send(embed=setup_name_error)
-
+    answer = await userinput_loop(eitcog, member, member.dm_channel,
+                                  filterfunc=is_valid_name, error_embed=setup_name_error)
     # change Users Nickname to tiped name
     try:
         await member.edit(nick=answer)
     except discord.Forbidden:
-        logging.info(f'could not asign new nickname to member "{member.name}"')
+        logging.info(f'could not asign new nickname to member "{answer}"')
 
     await member.send(embed=setup_group_select(answer, eitcog.semesters))
     await group_selection(eitcog, member)
@@ -129,38 +113,24 @@ async def setup_dialog(eitcog, member: discord.Member) -> None:
 
 async def group_selection(eitcog, member: discord.Member) -> None:
     # loop until User tiped in a valid studygroup
-    flag = True
+    role = await userinput_loop(eitcog, member, member.dm_channel,
+                                triggerfunc=filter_object_roles, error_embed=setup_group_error)
+    if role == eitcog.roles['Gast']:
+        await remove_groups(eitcog, member)
+        # await member.remove_role(role, eitcog.roles['Student'])
+        await member.add_roles(role)
+        await member.send(embed=setup_end("Gast"))
+    try:
+        await member.add_roles(eitcog.roles['Student'])
+        await member.add_roles(role)
+        await member.send(embed=setup_end(role.name))
+    except:
+        print('Fehler in der Groupselection')
 
-    while flag:
-        answer = await UserInput.userinput(eitcog, member, member.dm_channel)
-        if answer[1:] in eitcog.bot.all_commands.keys():
-            return
-        if answer.upper() == 'GAST':
-            await remove_groups(eitcog, member)
 
-            if eitcog.roles['Student'] in member.roles:
-                await member.remove_roles(eitcog.roles['Student'])
-
-            await member.add_roles(eitcog.roles['Gast'])
-            await member.send(embed=setup_end("Gast"))
-
-            break
-
-        for group in eitcog.groups:
-            if answer.upper() == group.name:
-                await remove_groups(eitcog, member)
-
-                if eitcog.roles['Gast'] in member.roles:
-                    await member.remove_roles(eitcog.roles['Gast'])
-
-                await member.add_roles(group.role, eitcog.roles['Student'])
-                await member.send(embed=setup_end(group.name))
-
-                flag = False
-                break
-
-        else:
-            await member.send(embed=setup_group_error(answer))
+def filter_object_roles(answer, eitcog):
+    if answer in eitcog.roles.keys:
+        return eitcog.roles[answer]
 
 
 async def remove_groups(eitcog, member: discord.Member) -> None:
