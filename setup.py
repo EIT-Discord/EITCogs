@@ -34,7 +34,7 @@ def semester_start(semesters: List) -> discord.Embed:
                                       "Nichts desto trotz müssen wir alle im 3ten (und hoffentlich letzten) "
                                       "Coronasemester nochmal die Zähne zusammen beißen und die paar wenigen "
                                       "Monate gemeinsam überstehen.\n\n"
-                                      "Damit auf dem Elektrotechnik Studium Server die entsprechenden Studien"
+                                      "Damit auf dem Elektrotechnik Studium Server die Studien"
                                       "gruppen wieder übereinstimmen, **antworte bitte mit deiner "
                                       "entsprechenden Studiengruppe** auf diese Nachricht!\n",
                           colour=discord.Colour(0x2fb923),

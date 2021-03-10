@@ -12,10 +12,11 @@ from redbot.core.utils.chat_formatting import humanize_timedelta
 
 
 class GoogleCalendar:
-    def __init__(self, credentials: Any, channel_mapping: Any,
+    def __init__(self, eitcog, credentials: Any, channel_mapping: Any,
                  fallback_channel: discord.TextChannel = None,
                  refresh_interval: int = 60, timezone: str = 'Europe/Berlin'):
 
+        self.eitcog = eitcog
         self.timezone = pytz.timezone(timezone)
         self.service = build('calendar', 'v3', credentials=credentials)
         self.channel_mapping = channel_mapping
@@ -76,23 +77,26 @@ class GoogleCalendar:
         A flattened list of calendar entries
         """
 
+        entries = []
+
+        for calendar_info, entry in self._fetch_calendar(limit):
+            time_until_remind = parse_remind_time(entry, self.timezone) - datetime.datetime.now(self.timezone)
+            if time_until_remind.total_seconds() <= max_seconds_until_remind:
+                if 'backgroundColor' in entry:
+                    entry['calendarColorId'] = calendar_info['backgroundColor']
+                entries.append(entry)
+        return entries
+
+    def _fetch_calendar(self, limit):
         now = datetime.datetime.utcnow().isoformat() + 'Z'  # 'Z' indicates UTC time
-        calendars_result = self.service.calendarList().list().execute()
-
-        events = []
-        for calendar_info in calendars_result['items']:
-            calendar = self.service.events().list(calendarId=calendar_info['id'], timeMin=now,
-                                                  maxResults=limit,
-                                                  singleEvents=True,
-                                                  orderBy='startTime').execute()
+        calendar_result = self.service.calendarList().list().execute()
+        for calendar_info in calendar_result['items']:
+            calendar = self.service.events().list(calendarId=calendar_info['id'], timeMin=now, maxResults=limit,
+                                                  singleEvents=True, orderBy='startTime').execute()
             for entry in calendar['items']:
-                time_until_remind = parse_remind_time(entry, self.timezone) - datetime.datetime.now(self.timezone)
-                if time_until_remind.total_seconds() <= max_seconds_until_remind:
-                    if 'backgroundColor' in calendar_info:
-                        entry['calendarColorId'] = calendar_info['backgroundColor']
-                    events.append(entry)
-        return events
+                yield calendar_info, entry
 
+    def 
 
 class CalendarEntry:
     def __init__(self, raw_entry: Dict, timezone: pytz.timezone):

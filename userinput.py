@@ -73,7 +73,10 @@ async def userinput_loop(eitcog, user, channel, filterfunc=None,
             if output:
                 return output
         if error_embed:
-            await user.send(embed=error_embed(content))
+            if callable(error_embed):
+                await user.send(embed=error_embed(content))
+            else:
+                await user.send(embed=error_embed)
         counter += 1
 
 

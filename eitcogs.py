@@ -15,19 +15,11 @@ from typing import List, Any
 from .userinput import UserInput, userinput_loop, is_bool_expression, stop_keys
 from .calendar import GoogleCalendar
 from .setup import setup_dialog, semester_start_dialog
-from .utils import get_member, toggle_role, codeblock
+from .utils import get_member, toggle_role, codeblock, get_obj_by_name
 from .configvalidator import validate
 
 RequestType = typing.Literal["discord_deleted_user", "owner", "user", "user_strict"]
 SCOPES = ['https://www.googleapis.com/auth/calendar.readonly']
-
-
-def get_obj_by_name(name: str, dc_obj: discord.object) -> discord.object:
-    obj = discord.utils.get(dc_obj, name=name)
-    if not obj:
-        print(f'EITBOT: {name} not found in guild!')
-    else:
-        return obj
 
 
 def get_google_creds(creds: Any = None) -> Any:
@@ -61,8 +53,10 @@ class EitCogs(commands.Cog):
         self.bot = bot
         self.config = Config.get_conf(self, identifier=8192739812739812)
 
-        default_kalender = {
-            'running': False
+        default_reminder = {
+            'running': False,
+            'reminder': [],
+            'member': None
         }
 
         self.guild = None
@@ -70,27 +64,23 @@ class EitCogs(commands.Cog):
         self.channels = {}
         self.semesters = []
         self.groups = []
-
+        self.calendar = None
         self.bot.add_listener(self.on_member_join)
 
         self.config.init_custom('Kalender', 1)
-        self.config.register_custom('Kalender', **default_kalender)
-        channel_mapping = {group.name: group.semester.channel for group in self.groups}
+        self.config.register_custom('Kalender', **default_reminder)
 
-    # self.calendar = GoogleCalendar(get_google_creds(), channel_mapping, fallback_channel=self.channels['kalender'])
-
-    def check_config(self) -> bool:
-        def _check_config():
-            if self.guild is None:
-                self.parse_config()
-            return self.guild is not None
-        return commands.check(_check_config)
+    def cog_check(self, ctx) -> bool:
+        if self.guild is None:
+            self.parse_config()
+        return self.guild is not None
 
     async def on_member_join(self, member: discord.Member) -> None:
         await setup_dialog(self, member)
 
     def is_student(self) -> bool:
         """Checks if the member who invoked the command has administrator permissions on this server"""
+
         async def _is_student(context: commands.context):
             try:
                 return self.roles['student'] in context.author.roles
@@ -153,33 +143,22 @@ class EitCogs(commands.Cog):
         # TODO: Replace this with the proper end user data removal handling.
         await super().red_delete_data_for_user(requester=requester, user_id=user_id)
 
-    @commands.admin()
-    @commands.command()
-    async def config(self, context: commands.context) -> None:
-        await context.send(codeblock(str(self)))
-
-    @commands.check(check_config)
     @commands.command()
     async def gamer(self, context: commands.context) -> None:
         """Erhalte/Entferne die Rolle Gamer"""
         member = get_member(self.guild, context.author)
         await toggle_role(member, self.roles['Gamer'])
 
-    @commands.check(check_config)
     @commands.command()
     async def setup(self, context: commands.context) -> None:
         """Startet den Setup-Dialog"""
         member = get_member(self.guild, context.author)
         await setup_dialog(self, member)
 
-    @commands.check(check_config)
-    @commands.admin()
-    @commands.command()
     async def semester_start(self, context: commands.context) -> None:
         member = get_member(self.guild, context.author)
         await semester_start_dialog(self, member)
 
-    @commands.check(check_config)
     @commands.command()
     async def admin(self, context: commands.context) -> None:
         embed = discord.Embed(name='Admins')
@@ -198,7 +177,6 @@ class EitCogs(commands.Cog):
                     embed.add_field(name=description, value=str(emoji), inline=False)
         await context.channel.send(embed=embed)
 
-    @commands.check(check_config)
     @commands.admin()
     @commands.command()
     async def poll(self, context: commands.context, channel: discord.TextChannel = None):
@@ -218,7 +196,6 @@ class EitCogs(commands.Cog):
                 poll.append(message)
                 await context.channel.send(f'Deine Eingabe lauten wie folgt: {message} - einverstanden?')
 
-    @commands.check(check_config)
     @commands.admin()
     @commands.command()
     async def broadcast(self, context: commands.context, roles: commands.Greedy[discord.Role],
@@ -235,14 +212,13 @@ class EitCogs(commands.Cog):
                 for member in role.members:
                     receiver.append(member)
 
-        if command in commands:
+        if command in available_commands:
             for member in receiver:
                 try:
                     asyncio.create_task(available_commands[command](self, member))
                 except (AttributeError, discord.HTTPException):
                     print('Kein DM-Channel - Vermutlich ein Bot')
 
-    @commands.check(check_config)
     @commands.check(is_student)
     @commands.command()
     async def ongoing(self, context: commands.context) -> None:
@@ -255,6 +231,21 @@ class EitCogs(commands.Cog):
                 if reminder.entry:
                     output += f'{reminder.entry.calendar_name}: {reminder.entry.summary}\n'
             await context.channel.send(codeblock(output))
+
+    async def add_course(self):
+        pass
+
+    async def remove_course(self):
+        pass
+
+    async def overview(self):
+        pass
+
+    @commands.command()
+    async def start(self, ctx):
+        channel_mapping = {group.name: group.semester.channel for group in self.groups}
+        self.calendar = GoogleCalendar(self, get_google_creds(),
+                                       channel_mapping, fallback_channel=self.channels['kalender'])
 
 
 class Group:
