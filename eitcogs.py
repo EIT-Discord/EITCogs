@@ -8,11 +8,11 @@ import yaml
 from google.auth.transport.requests import Request
 from google_auth_oauthlib.flow import InstalledAppFlow
 
-from redbot.core import commands
+from redbot.core import commands, Config
 from redbot.core.bot import Red
 from typing import List, Any
 
-from .userinput import UserInput
+from .userinput import UserInput, userinput_loop, is_bool_expression, stop_keys
 from .calendar import GoogleCalendar
 from .setup import setup_dialog, semester_start_dialog
 from .utils import get_member, toggle_role, codeblock
@@ -59,12 +59,11 @@ class EitCogs(commands.Cog):
     def __init__(self, bot: Red, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.bot = bot
+        self.config = Config.get_conf(self, identifier=8192739812739812)
 
-        try:
-            with open('./data/config.yml', 'r') as file:
-                self.config = validate(yaml.load(file, Loader=yaml.Loader))
-        except FileNotFoundError:
-            print('EITBOT: No configuration file found')
+        default_kalender = {
+            'running': False
+        }
 
         self.guild = None
         self.roles = {}
@@ -72,32 +71,44 @@ class EitCogs(commands.Cog):
         self.semesters = []
         self.groups = []
 
-        self.parse_config()
-
         self.bot.add_listener(self.on_member_join)
 
+        self.config.init_custom('Kalender', 1)
+        self.config.register_custom('Kalender', **default_kalender)
         channel_mapping = {group.name: group.semester.channel for group in self.groups}
 
-        # self.calendar = GoogleCalendar(get_google_creds(), channel_mapping, fallback_channel=self.channels['kalender'])
+    # self.calendar = GoogleCalendar(get_google_creds(), channel_mapping, fallback_channel=self.channels['kalender'])
+
+    def check_config(self) -> bool:
+        def _check_config():
+            if self.guild is None:
+                self.parse_config()
+            return self.guild is not None
+        return commands.check(_check_config)
 
     async def on_member_join(self, member: discord.Member) -> None:
         await setup_dialog(self, member)
 
     def is_student(self) -> bool:
         """Checks if the member who invoked the command has administrator permissions on this server"""
-
-        async def predicate(context: commands.context) -> bool:
+        async def _is_student(context: commands.context):
             try:
                 return self.roles['student'] in context.author.roles
             except AttributeError:
                 return False
 
-        return commands.check(predicate)
+        return commands.check(_is_student)
 
     def parse_config(self) -> None:
         # parse guild
+        try:
+            with open('./data/config.yml', 'r') as file:
+                config = validate(yaml.load(file, Loader=yaml.Loader))
+        except FileNotFoundError:
+            print('EITBOT: No configuration file found')
+
         for guild in self.bot.guilds:
-            if self.config['server'] == guild.id:
+            if config['server'] == guild.id:
                 self.guild = guild
                 break
         else:
@@ -105,19 +116,19 @@ class EitCogs(commands.Cog):
             return
 
         # parse roles
-        for role_name in self.config['roles']:
-            role = get_obj_by_name(role_name, self.guild.roles)
+        for role_name in config['roles']:
+            role = get_obj_by_name(role_name, guild.roles)
             if role:
                 self.roles.update({role_name: role})
 
         # parse channels
-        for channel_name in self.config['channels']:
+        for channel_name in config['channels']:
             channel = get_obj_by_name(channel_name, self.guild.text_channels)
             if channel:
                 self.channels.update({channel_name: channel})
 
         # parse semesters
-        for semester_year, semester_group_names in self.config['semesters'].items():
+        for semester_year, semester_group_names in config['semesters'].items():
             new_semester = Semester(semester_year)
 
             # parse semester channel
@@ -142,27 +153,33 @@ class EitCogs(commands.Cog):
         # TODO: Replace this with the proper end user data removal handling.
         await super().red_delete_data_for_user(requester=requester, user_id=user_id)
 
+    @commands.admin()
     @commands.command()
     async def config(self, context: commands.context) -> None:
         await context.send(codeblock(str(self)))
 
+    @commands.check(check_config)
     @commands.command()
     async def gamer(self, context: commands.context) -> None:
         """Erhalte/Entferne die Rolle Gamer"""
         member = get_member(self.guild, context.author)
         await toggle_role(member, self.roles['Gamer'])
 
+    @commands.check(check_config)
     @commands.command()
     async def setup(self, context: commands.context) -> None:
         """Startet den Setup-Dialog"""
         member = get_member(self.guild, context.author)
         await setup_dialog(self, member)
 
+    @commands.check(check_config)
+    @commands.admin()
     @commands.command()
     async def semester_start(self, context: commands.context) -> None:
         member = get_member(self.guild, context.author)
         await semester_start_dialog(self, member)
 
+    @commands.check(check_config)
     @commands.command()
     async def admin(self, context: commands.context) -> None:
         embed = discord.Embed(name='Admins')
@@ -181,45 +198,42 @@ class EitCogs(commands.Cog):
                     embed.add_field(name=description, value=str(emoji), inline=False)
         await context.channel.send(embed=embed)
 
-    # @commands.command()
-    # async def poll(self, context: commands.context, channel: discord.TextChannel = None):
-    #     await context.channel.send('Die Umfrage wird jetzt vorbereitet, gib deine Fragen im Dialog an!')
-    #     questions = []
-    #     while True:
-    #         message = await UserInput.userinput(self, get_member(self.guild, context.author), context.author.dm_channel)
-    #         if message.lower() in ['stop', 'end', 'aufhören', 'fertig']:
-    #             output = ''
-    #             for question in questions:
-    #                 output += question + 'n'
-    #             await context.channel.send(f'Deine Fragen lauten wie folgt: {output}')
-    #         else:
-    #             while True:
-    #                 await context.channel.send(f'Ist die Frage {message} so richtig?')
-    #                 answer = await UserInput.userinput(self, get_member(self.guild, context.author), context.author.dm_channel)
-    #                 if answer.lower() in ['nein', 'no', 'n']:
-    #                     await context.channel.send('Gib deine Frage erneut ein!')
-    #                     message = await UserInput.userinput(self, context.member, context.member.dm_channel)
-    #                 else:
-    #                     break
-    #             questions.append(message)
+    @commands.check(check_config)
+    @commands.admin()
+    @commands.command()
+    async def poll(self, context: commands.context, channel: discord.TextChannel = None):
+        await context.channel.send('Die Umfrage wird jetzt vorbereitet, gib deine Fragen im Dialog an!')
+        poll = []
+        while True:
+            message = await UserInput.userinput(self, context.author, context.author.dm_channel, only_content=True)
+            if stop_keys(message):
+                output = ''
+                for entry in poll:
+                    output += entry + '\n'
+                    await context.channel.send(output)
+                    break
+            if is_bool_expression(message) is False:
+                await context.channel.send('Wiederhole bitte deine Eingabe!')
+            elif is_bool_expression(message) is not False:
+                poll.append(message)
+                await context.channel.send(f'Deine Eingabe lauten wie folgt: {message} - einverstanden?')
 
+    @commands.check(check_config)
     @commands.admin()
     @commands.command()
     async def broadcast(self, context: commands.context, roles: commands.Greedy[discord.Role],
                         channel: typing.Optional[discord.TextChannel] = None,
                         command=None):
+        """Erlaubt das Ausführen der Dialoge an alle Servermitglieder mit der ausgewählten Rolle"""
 
         available_commands = {'setup': setup_dialog,
                               'semesterstart': semester_start_dialog}
 
         receiver = []
-        if roles:
-            for role in roles:
-                if role in context.guild.roles:
-                    for member in role.members:
-                        receiver.append(member)
-        else:
-            await context.send('Es muss eine Rolle angegeben werden!')
+        for role in roles:
+            if role in context.guild.roles:
+                for member in role.members:
+                    receiver.append(member)
 
         if command in commands:
             for member in receiver:
@@ -228,6 +242,8 @@ class EitCogs(commands.Cog):
                 except (AttributeError, discord.HTTPException):
                     print('Kein DM-Channel - Vermutlich ein Bot')
 
+    @commands.check(check_config)
+    @commands.check(is_student)
     @commands.command()
     async def ongoing(self, context: commands.context) -> None:
         """Zeigt alle laufenden Termine an"""

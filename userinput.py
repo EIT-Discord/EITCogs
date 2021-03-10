@@ -11,21 +11,21 @@ ongoing = []
 
 
 class UserInput:
-    def __init__(self, eitcog, member: discord.Member, channel: discord.TextChannel):
+    def __init__(self, eitcog, user: [discord.User, discord.Member], channel: discord.TextChannel):
         self.eitcog = eitcog
-        self.member = get_member(eitcog.guild, member)
+        self.user = user
         self.channel = channel
         self.queue = asyncio.Queue()
 
         eitcog.bot.add_listener(self.on_message)
 
     def __eq__(self, other: UserInput) -> bool:
-        if self.channel == other.channel and self.member == other.member:
+        if self.channel == other.channel and self.user == other.user:
             return True
 
     @classmethod
     async def userinput(cls, eitcog, user: [discord.User, discord.Member],
-                        channel: discord.TextChannel) -> Any:
+                        channel: discord.TextChannel, only_content=False) -> Any:
 
         new_ui = cls(eitcog, user, channel)
 
@@ -37,6 +37,8 @@ class UserInput:
         ongoing.append(new_ui)
         answer = await new_ui.queue.get()
         new_ui.delete()
+        if only_content:
+            return answer.content
         return answer
 
     def delete(self):
@@ -44,12 +46,9 @@ class UserInput:
         ongoing.remove(self)
 
     async def on_message(self, message: discord.Message):
-        if self.stop_keys(message.content):
+        if await self.command_invoke(self.eitcog.bot, message):
             return
-        # bisschen madig
-        elif await self.command_invoke(self.eitcog.bot, message):
-            return
-        elif message.author.id == self.member.id and message.channel == self.channel:
+        elif message.author.id == self.user.id and message.channel == self.channel:
             await self.queue.put(message)
 
     @staticmethod
@@ -59,33 +58,36 @@ class UserInput:
             if message.content.startswith(prefix):
                 return True
 
-    @staticmethod
-    def stop_keys(message: str) -> bool:
-        if message.lower in ['stop', 'halt', 'ende']:
-            return True
 
-# TODO: Funktioniert noch nicht richtig!
-async def userinput_loop(eitcog, member, channel, filterfunc=None,
-                         triggerfunc=None, max_repetitions=10, error_embed=None, *kwargs) -> Any:
+async def userinput_loop(eitcog, user, channel, filterfunc=None,
+                         converter=None, max_repetitions=10, error_embed=None, **kwargs) -> Any:
     counter = 0
     while counter < (max_repetitions + 1):
-        answer = await UserInput.userinput(eitcog, member, channel)
+        answer = await UserInput.userinput(eitcog, user, channel)
         content = answer.content
-        if filterfunc(content, *kwargs):
-            return answer.content
-        elif triggerfunc:
-            try:
-                return triggerfunc(content)
-            except:
-                print('uff')
-        elif error_embed:
-            await member.send(embed=error_embed(content))
+        if filterfunc is not None:
+            if filterfunc(content, **kwargs):
+                return answer.content
+        elif converter:
+            output = converter(content, eitcog)
+            if output:
+                return output
+        if error_embed:
+            await user.send(embed=error_embed(content))
         counter += 1
 
 
 def is_valid_name(name: str) -> bool:
     """Checks if the typed in name is valid Was genau alda"""
-    if len(name) > 32 or not all(x.isalpha() or x.isspace() for x in name):
-        return False
-    else:
+    return False if len(name) > 32 or not all(x.isalpha() or x.isspace() for x in name) else True
+
+
+def is_bool_expression(message: str) -> bool:
+    if message.lower() in ['ja', 'j', 'yes', 'y']:
         return True
+    elif message.lower() in ['nein', 'n', 'no']:
+        return False
+
+
+def stop_keys(message: str) -> bool:
+    return True if message.lower() in ['stop', 'halt', 'ende'] else False

@@ -5,7 +5,6 @@ from typing import List
 import discord
 
 from .userinput import userinput_loop, is_valid_name
-from .utils import get_user
 
 setup_start = discord.Embed(description="Willkommen auf unserem Elektrotechnik Discord Server!\n\n"
                                         "Dieses Setup ist dafür da, damit wir und deine Kommilitonen "
@@ -114,23 +113,27 @@ async def setup_dialog(eitcog, member: discord.Member) -> None:
 async def group_selection(eitcog, member: discord.Member) -> None:
     # loop until User tiped in a valid studygroup
     role = await userinput_loop(eitcog, member, member.dm_channel,
-                                triggerfunc=filter_object_roles, error_embed=setup_group_error)
+                                converter=convert_object_roles, error_embed=setup_group_error)
+
+    await remove_groups(eitcog, member)
+    await member.add_roles(role)
+
     if role == eitcog.roles['Gast']:
-        await remove_groups(eitcog, member)
-        # await member.remove_role(role, eitcog.roles['Student'])
-        await member.add_roles(role)
-        await member.send(embed=setup_end("Gast"))
-    try:
+        await member.remove_roles(eitcog.roles['Student'])
+    else:
         await member.add_roles(eitcog.roles['Student'])
-        await member.add_roles(role)
-        await member.send(embed=setup_end(role.name))
-    except:
-        print('Fehler in der Groupselection')
+
+    await member.send(embed=setup_end(role.name))
+    return
 
 
-def filter_object_roles(answer, eitcog):
-    if answer in eitcog.roles.keys:
-        return eitcog.roles[answer]
+def convert_object_roles(answer, eitcog):
+    for name, role in eitcog.roles.items():
+        if answer.lower() == name.lower():
+            return role
+    for group in eitcog.groups:
+        if answer.upper() in group.name.upper():
+            return group.role
 
 
 async def remove_groups(eitcog, member: discord.Member) -> None:
