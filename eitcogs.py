@@ -12,10 +12,12 @@ from redbot.core import commands, Config
 from redbot.core.bot import Red
 from typing import List, Any
 
+
+from .test import TestUserInput
 from .userinput import UserInput, is_bool_expression, stop_keys
 from .calendar import GoogleCalendar
 from .setup import setup_dialog, semester_start_dialog
-from .utils import get_member, toggle_role, codeblock, get_obj_by_name
+from .utils import get_member, toggle_role, codeblock, get_obj_by_name, test_user
 from .configvalidator import validate
 
 RequestType = typing.Literal["discord_deleted_user", "owner", "user", "user_strict"]
@@ -113,7 +115,7 @@ class EitCogs(commands.Cog):
                 self.guild = guild
                 break
         else:
-            print('EITBOT: The bot is not a member of the guild with the specified guild id')
+            print('EITBOT: The eitcog is not a member of the guild with the specified guild id')
             return
 
         # parse roles
@@ -255,7 +257,20 @@ class EitCogs(commands.Cog):
     async def start(self, ctx):
         channel_mapping = {group.name: group.semester.channel for group in self.groups}
         self.calendar = GoogleCalendar(self, get_google_creds(),
+
                                        channel_mapping, fallback_channel=self.channels['kalender'])
+        await ctx.send('Kalender gestartet!')
+
+    @commands.command()
+    async def stop(self, ctx):
+        self.calendar = None
+        await ctx.send('Kalender gestoppt!')
+
+    @commands.command()
+    async def test(self, ctx):
+        test = TestUserInput()
+        test.load_eitcog(self)
+
 
 
 class Group:

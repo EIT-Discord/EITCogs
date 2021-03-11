@@ -48,3 +48,17 @@ def get_obj_by_name(name: str, dc_obj: discord.object) -> discord.object:
         print(f'EITBOT: {name} not found in guild!')
     else:
         return obj
+
+
+async def test_user(eitcog):
+    member_ids = [member.id for member in eitcog.guild.members]
+    for ids in member_ids:
+        yield await eitcog.bot.fetch_user(ids)
+
+
+async def test_message(eitcog):
+    for guild in eitcog.bot.guilds:
+        for textchannel in guild:
+            for message in await textchannel.history(limit=200).flatten():
+                yield message
+

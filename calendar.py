@@ -83,7 +83,6 @@ class GoogleCalendar:
         """
 
         entries = []
-
         for calendar_info, entry in self._fetch_calendar(limit):
             time_until_remind = parse_remind_time(entry, self.timezone) - datetime.datetime.now(self.timezone)
             if time_until_remind.total_seconds() <= max_seconds_until_remind:
@@ -256,5 +255,4 @@ class Reminder:
     def pickle_active_reminders(self):
         with open(PICKLEPATH, 'wb') as file:
             pickle.dump(self.calendar.active_reminders, file)
-                           f'{self.entry.summary} in {humanize_timedelta(timedelta=time_until_event)}!'
->>>>>>> Stashed changes
+

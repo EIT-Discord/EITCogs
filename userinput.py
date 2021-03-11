@@ -5,17 +5,18 @@ from typing import Any
 
 import discord
 
-from .utils import get_member, codeblock
+from .utils import get_member, codeblock, test_message
 
 ongoing = []
 
 
 class UserInput:
-    def __init__(self, eitcog, user: [discord.User, discord.Member], channel: discord.TextChannel):
+    def __init__(self, eitcog, user: [discord.User, discord.Member], channel: discord.TextChannel, test=False):
         self.eitcog = eitcog
         self.user = user
         self.channel = channel
         self.queue = asyncio.Queue()
+        self.test = test
 
         eitcog.bot.add_listener(self.on_message)
 
@@ -25,7 +26,7 @@ class UserInput:
 
     @classmethod
     async def userinput(cls, eitcog, user: [discord.User, discord.Member],
-                        channel: discord.TextChannel, only_content=False) -> Any:
+                        channel: discord.TextChannel, only_content=False, test=False) -> Any:
 
         new_ui = cls(eitcog, user, channel)
 
@@ -35,7 +36,10 @@ class UserInput:
                 ui.delete()
 
         ongoing.append(new_ui)
-        answer = await new_ui.queue.get()
+        if test:
+            answer = test_message(eitcog)
+        else:
+            answer = await new_ui.queue.get()
         new_ui.delete()
         if only_content:
             return answer.content

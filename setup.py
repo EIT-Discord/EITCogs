@@ -28,15 +28,18 @@ setup_name_error = discord.Embed(description="Hoppla!\n"
 
 
 def semester_start(semesters: List) -> discord.Embed:
-    embed = discord.Embed(description="Hallo liebe Kommolitionen und Kommolitioninnen!\n\n"
-                                      "Das neue Semester steht schon wieder vor der Tür obwohl "
+    embed = discord.Embed(description="Hallo liebe Kommilitonen und Kommilitoninnen!\n\n"
+                                      "Das neue Semester steht schon wieder vor der Tür, obwohl "
                                       "das Letzte noch nicht mal richtig verdaut wurde.\n"
-                                      "Nichts desto trotz müssen wir alle im 3ten (und hoffentlich letzten) "
-                                      "Coronasemester nochmal die Zähne zusammen beißen und die paar wenigen "
-                                      "Monate gemeinsam überstehen.\n\n"
-                                      "Damit auf dem Elektrotechnik Studium Server die Studien"
-                                      "gruppen wieder übereinstimmen, **antworte bitte mit deiner "
-                                      "entsprechenden Studiengruppe** auf diese Nachricht!\n",
+                                      "Nichtsdestotrotz müssen wir alle im 3ten (und hoffentlich letzten) "
+                                      "Corona-Semester nochmal die Zähne zusammenbeißen und die paar wenigen "
+                                      "Monate gemeinsam überstehen. \n\n"
+                                      "Damit auf dem Elektrotechnik Studium Server die entsprechenden Studien"
+                                      "gruppen wieder übereinstimmen, antworte bitte mit deiner "
+                                      "entsprechenden Studiengruppe auf diese Nachricht. !\n\n"
+                                      "Bei Problemen mit der Registrierung schau unter #:grey_question:-faq!\n"
+                                      "Für die Leute, die auf unserem Server neu sind,"
+                                      "lest euch bitte die Regeln unter #!-rules durch.",
                           colour=discord.Colour(0x2fb923),
                           title="Semesterstart")
 
