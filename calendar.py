@@ -55,8 +55,9 @@ class GoogleCalendar:
 
         # Got new events
         for entry in entries:
-            if entry.calendar_name in self.channel_mapping:
-                channel = self.channel_mapping[entry.calendar_name]
+            group_name, course_name = entry.calendar_name.split('-')
+            if group_name in self.channel_mapping :
+                channel = self.channel_mapping[group_name]
             elif self.fallback_channel:
                 channel = self.fallback_channel
             else:
@@ -255,3 +256,5 @@ class Reminder:
     def pickle_active_reminders(self):
         with open(PICKLEPATH, 'wb') as file:
             pickle.dump(self.calendar.active_reminders, file)
+                           f'{self.entry.summary} in {humanize_timedelta(timedelta=time_until_event)}!'
+>>>>>>> Stashed changes

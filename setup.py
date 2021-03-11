@@ -145,6 +145,9 @@ async def remove_groups(eitcog, member: discord.Member) -> None:
 async def semester_start_dialog(eitcog, member: discord.Member) -> None:
     try:
         await member.send(embed=semester_start(eitcog.semesters))
-    except (AttributeError, discord.HTTPException):
-        print('Kot')
+    except AttributeError as error:
+        print('Empfäner ist ein Bot!')
+    except discord.HTTPException as error:
+        print(error)
+
     await group_selection(eitcog, member)

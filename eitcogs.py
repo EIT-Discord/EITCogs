@@ -12,7 +12,7 @@ from redbot.core import commands, Config
 from redbot.core.bot import Red
 from typing import List, Any
 
-from .userinput import UserInput, userinput_loop, is_bool_expression, stop_keys
+from .userinput import UserInput, is_bool_expression, stop_keys
 from .calendar import GoogleCalendar
 from .setup import setup_dialog, semester_start_dialog
 from .utils import get_member, toggle_role, codeblock, get_obj_by_name
@@ -138,7 +138,7 @@ class EitCogs(commands.Cog):
             if channel:
                 new_semester.channel = channel
             else:
-                print(f'EITBOT: now announcement channel found for {new_semester}')
+                print(f'EITBOT: no announcement channel found for {new_semester}')
 
             # parse semester groups
             for group_name in semester_group_names:
