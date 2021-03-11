@@ -131,3 +131,4 @@ dmypy.json
 .idea
 *.pickle
 *.xml
+data/token.pickle

@@ -1,5 +1,6 @@
 import asyncio
 import datetime
+import pickle
 from typing import Dict, List, Any
 
 from googleapiclient.discovery import build
@@ -9,6 +10,9 @@ import html2text as html2text
 import pytz
 from discord.ext import tasks
 from redbot.core.utils.chat_formatting import humanize_timedelta
+
+
+PICKLEPATH = './data/calendar.pickle'
 
 
 class GoogleCalendar:
@@ -23,7 +27,7 @@ class GoogleCalendar:
         self.fallback_channel = fallback_channel
 
         self.reminders = []
-
+        self.active_reminders = {}
         self.refresh = tasks.loop(seconds=refresh_interval)(self.refresh)
         self.refresh.start()
 
@@ -96,7 +100,14 @@ class GoogleCalendar:
             for entry in calendar['items']:
                 yield calendar_info, entry
 
-    def 
+    def load_data(self):
+        try:
+            with open('./data/calendar.pickle', 'rb') as file:
+                entries = pickle.load(file)
+        except FileNotFoundError:
+            self.reminders = []
+            return
+
 
 class CalendarEntry:
     def __init__(self, raw_entry: Dict, timezone: pytz.timezone):
@@ -181,8 +192,9 @@ def parse_remind_time(raw_entry: Dict, timezone: datetime.tzinfo):
 
 
 class Reminder:
-    def __init__(self, entry: CalendarEntry, channel: discord.TextChannel, timezone: datetime.tzinfo):
+    def __init__(self, calendar: GoogleCalendar, entry: CalendarEntry, channel: discord.TextChannel, timezone: datetime.tzinfo):
 
+        self.calendar = calendar
         self.entry = entry
         self.channel = channel
         self.timezone = timezone
@@ -204,17 +216,25 @@ class Reminder:
             if self.message:
                 await self.update_message()
             else:
-                self.message = await self.channel.send(embed=self.embed)
+                await self.send_message()
 
         elif self.message:
             await self.delete_message()
 
+    async def send_message(self):
+        self.message = await self.channel.send(embed=self.embed)
+
+        self.calendar.active_reminders.update({self.message.id: (self.message, self.entry)})
+        self.pickle_active_reminders()
+
     async def delete_message(self) -> None:
         try:
             await self.message.delete()
-            self.message = None
         except discord.NotFound:
             pass
+        finally:
+            self.calendar.active_reminders.pop(self.message.id)
+            self.pickle_active_reminders()
 
     async def update_message(self) -> None:
         try:
@@ -231,3 +251,7 @@ class Reminder:
         time_until_event = self.entry.event_start - datetime.datetime.now(self.timezone)
         self.embed.title = f'**{self.entry.calendar_name}**:  ' \
                            f'{self.entry.summary} {humanize_timedelta(timedelta=time_until_event)}'
+
+    def pickle_active_reminders(self):
+        with open(PICKLEPATH, 'wb') as file:
+            pickle.dump(self.calendar.active_reminders, file)

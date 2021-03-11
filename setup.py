@@ -113,7 +113,7 @@ async def setup_dialog(eitcog, member: discord.Member) -> None:
 async def group_selection(eitcog, member: discord.Member) -> None:
     # loop until User tiped in a valid studygroup
     role = await userinput_loop(eitcog, member, member.dm_channel,
-                                converter=convert_object_roles, error_embed=setup_group_error)
+                                converter=str_to_role, error_embed=setup_group_error)
 
     await remove_groups(eitcog, member)
     await member.add_roles(role)
@@ -127,7 +127,7 @@ async def group_selection(eitcog, member: discord.Member) -> None:
     return
 
 
-def convert_object_roles(answer, eitcog):
+def str_to_role(answer, eitcog):
     for name, role in eitcog.roles.items():
         if answer.lower() == name.lower():
             return role
