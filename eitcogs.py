@@ -13,11 +13,10 @@ from redbot.core.bot import Red
 from typing import List, Any
 
 
-from .test import TestUserInput
 from .userinput import UserInput, is_bool_expression, stop_keys
 from .calendar import GoogleCalendar
 from .setup import setup_dialog, semester_start_dialog
-from .utils import get_member, toggle_role, codeblock, get_obj_by_name, test_user
+from .utils import get_member, toggle_role, codeblock, get_obj_by_name
 from .configvalidator import validate
 
 RequestType = typing.Literal["discord_deleted_user", "owner", "user", "user_strict"]
@@ -78,7 +77,16 @@ class EitCogs(commands.Cog):
         return self.guild is not None
 
     async def on_member_join(self, member: discord.Member) -> None:
+        self.cog_check(None)
+        try:
+            await asyncio.wait_for(self.pending_check(member), 86400)  # Timeout after 1 day
+        except asyncio.exceptions.TimeoutError:
+            self.channels['botlog'].send(f'{member.display_name} wasn\'t verified after one day! Stopped checking pending status!')
         await setup_dialog(self, member)
+
+    async def pending_check(self, member):
+        while get_member(self.guild, member).pending:
+            await asyncio.sleep(5)
 
     def is_student(self) -> bool:
         """Checks if the member who invoked the command has administrator permissions on this server"""
@@ -209,11 +217,12 @@ class EitCogs(commands.Cog):
                 poll.append(message)
                 await context.channel.send(f'Deine Eingabe lauten wie folgt: {message} - einverstanden?')
 
+    @commands.admin()
     @commands.command()
     async def broadcast(self, context: commands.context, roles: commands.Greedy[discord.Role],
                         channel: typing.Optional[discord.TextChannel] = None,
                         command=None):
-        """Erlaubt das Ausführen der Dialoge an alle Servermitglieder mit der ausgewählten Rolle"""
+        """Erlaubt das Ausführen der Dialoge an alle Servermitglieder mit der ausgewählten Rolle --dev"""
 
         available_commands = {'setup': setup_dialog,
                               'semesterstart': semester_start_dialog}
@@ -234,7 +243,7 @@ class EitCogs(commands.Cog):
     @commands.check(is_student)
     @commands.command()
     async def ongoing(self, context: commands.context) -> None:
-        """Zeigt alle laufenden Termine an"""
+        """Zeigt alle laufenden Termine an --dev"""
         output = ''
         if not self.calendar.reminders:
             await context.channel.send('Es gibt momentan keine laufenden Termine!')
@@ -253,24 +262,28 @@ class EitCogs(commands.Cog):
     async def overview(self):
         pass
 
+    @commands.admin()
     @commands.command()
     async def start(self, ctx):
+        """Startet eine Kalenderinstanz --dev"""
         channel_mapping = {group.name: group.semester.channel for group in self.groups}
         self.calendar = GoogleCalendar(self, get_google_creds(),
 
                                        channel_mapping, fallback_channel=self.channels['kalender'])
         await ctx.send('Kalender gestartet!')
 
+    @commands.admin()
     @commands.command()
     async def stop(self, ctx):
+        """Stoppt den Kalender --dev"""
         self.calendar = None
         await ctx.send('Kalender gestoppt!')
 
-    @commands.command()
-    async def test(self, ctx):
-        test = TestUserInput()
-        test.load_eitcog(self)
-
+    # @commands.command()
+    # async def test(self, ctx, limit=20):
+    #     async for message in test_message(self):
+    #         test = TestUserInput()
+    #         await test.load_eitcog(self, message)
 
 
 class Group:

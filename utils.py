@@ -58,7 +58,6 @@ async def test_user(eitcog):
 
 async def test_message(eitcog):
     for guild in eitcog.bot.guilds:
-        for textchannel in guild:
-            for message in await textchannel.history(limit=200).flatten():
+        for text_channel in guild.text_channels:
+            for message in await text_channel.history(limit=200).flatten():
                 yield message
-

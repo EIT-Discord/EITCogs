@@ -1,6 +1,6 @@
 import asyncio
 import datetime
-import pickle
+import re
 from typing import Dict, List, Any
 
 from googleapiclient.discovery import build
@@ -9,13 +9,11 @@ import discord
 import html2text as html2text
 import pytz
 from discord.ext import tasks
-from redbot.core.utils.chat_formatting import humanize_timedelta
-
-
-PICKLEPATH = './data/calendar.pickle'
 
 
 class GoogleCalendar:
+    """"""
+
     def __init__(self, eitcog, credentials: Any, channel_mapping: Any,
                  fallback_channel: discord.TextChannel = None,
                  refresh_interval: int = 60, timezone: str = 'Europe/Berlin'):
@@ -56,14 +54,14 @@ class GoogleCalendar:
         # Got new events
         for entry in entries:
             group_name, course_name = entry.calendar_name.split('-')
-            if group_name in self.channel_mapping :
+            if group_name in self.channel_mapping:
                 channel = self.channel_mapping[group_name]
             elif self.fallback_channel:
                 channel = self.fallback_channel
             else:
                 print(f'EITBOT: Could not find an appropriate channel for calendar entry "{entry.summary}"')
                 return
-            self.reminders.append(Reminder(entry, channel, self.timezone))
+            self.reminders.append(Reminder(self, entry, channel, self.timezone))
 
     async def update_reminders(self) -> None:
         for reminder in self.reminders:
@@ -99,14 +97,6 @@ class GoogleCalendar:
                                                   singleEvents=True, orderBy='startTime').execute()
             for entry in calendar['items']:
                 yield calendar_info, entry
-
-    def load_data(self):
-        try:
-            with open('./data/calendar.pickle', 'rb') as file:
-                entries = pickle.load(file)
-        except FileNotFoundError:
-            self.reminders = []
-            return
 
 
 class CalendarEntry:
@@ -161,38 +151,9 @@ class CalendarEntry:
         return embed
 
 
-def parse_time(time: Dict, timezone: datetime.tzinfo):
-    if 'dateTime' in time:
-        return dateutil.parser.parse(time['dateTime']).astimezone(timezone)
-    elif 'date' in time:
-        return dateutil.parser.parse(time['date']).astimezone(timezone)
-    else:
-        print("EITBOT: No date or dateTime key in entry dict recieved from Google Calendar API. Ignoring entry.")
-
-
-def format_time(td: datetime.timedelta) -> str:
-    if td < datetime.timedelta(seconds=0):
-        output = 'seit'
-    else:
-        output = 'in'
-
-    hours, remainder = divmod(td.seconds, 3600)
-    minutes, seconds = divmod(remainder, 60)
-
-    return f'{output} {td.days}:{hours}:{minutes}'
-
-
-def parse_remind_time(raw_entry: Dict, timezone: datetime.tzinfo):
-    """Returns the time when the entries reminder should fire as a dateime object."""
-    if 'reminders' in raw_entry and 'overrides' in raw_entry['reminders']:
-        remind_minutes = raw_entry['reminders']['overrides'][0]['minutes']
-    else:
-        remind_minutes = 30
-    return parse_time(raw_entry['start'], timezone) - datetime.timedelta(minutes=remind_minutes)
-
-
 class Reminder:
-    def __init__(self, calendar: GoogleCalendar, entry: CalendarEntry, channel: discord.TextChannel, timezone: datetime.tzinfo):
+    def __init__(self, calendar: GoogleCalendar, entry: CalendarEntry, channel: discord.TextChannel,
+                 timezone: datetime.tzinfo):
 
         self.calendar = calendar
         self.entry = entry
@@ -225,7 +186,6 @@ class Reminder:
         self.message = await self.channel.send(embed=self.embed)
 
         self.calendar.active_reminders.update({self.message.id: (self.message, self.entry)})
-        self.pickle_active_reminders()
 
     async def delete_message(self) -> None:
         try:
@@ -234,7 +194,6 @@ class Reminder:
             pass
         finally:
             self.calendar.active_reminders.pop(self.message.id)
-            self.pickle_active_reminders()
 
     async def update_message(self) -> None:
         try:
@@ -249,10 +208,67 @@ class Reminder:
 
     def set_embed_title(self) -> None:
         time_until_event = self.entry.event_start - datetime.datetime.now(self.timezone)
+        if time_until_event.total_seconds() > 0:
+            preposition = 'in'
+        else:
+            preposition = 'seit'
         self.embed.title = f'**{self.entry.calendar_name}**:  ' \
-                           f'{self.entry.summary} {humanize_timedelta(timedelta=time_until_event)}'
+                           f'{self.entry.summary} {preposition} {reformat_timedelta(timedelta=time_until_event)}!'
+        prof_regexp = re.compile('(?<=\[).+?(?=\])')
+        try:
+            prof_name = prof_regexp.search(self.entry.summary).group(0).lower(). \
+                replace('ä', 'ae').replace('ö', 'oe').replace('ü', 'ue').replace('ß', 'ss')
+            self.embed.set_thumbnail(url=f"https://w3-mediapool.hm.edu/mediapool/media/fk04/fk04_lokal/professoren_4/"
+                                         f"{prof_name}/{prof_name}_ContactBild.jpg")
 
-    def pickle_active_reminders(self):
-        with open(PICKLEPATH, 'wb') as file:
-            pickle.dump(self.calendar.active_reminders, file)
+        except Exception as e:
+            print(e)
 
+
+def parse_remind_time(raw_entry: Dict, timezone: datetime.tzinfo):
+    """Returns the time when the entries reminder should fire as a dateime object."""
+    if 'reminders' in raw_entry and 'overrides' in raw_entry['reminders']:
+        remind_minutes = raw_entry['reminders']['overrides'][0]['minutes']
+    else:
+        remind_minutes = 30
+    return parse_time(raw_entry['start'], timezone) - datetime.timedelta(minutes=remind_minutes)
+
+
+def parse_time(time: Dict, timezone: datetime.tzinfo):
+    if 'dateTime' in time:
+        return dateutil.parser.parse(time['dateTime']).astimezone(timezone)
+    elif 'date' in time:
+        return dateutil.parser.parse(time['date']).astimezone(timezone)
+    else:
+        print("EITBOT: No date or dateTime key in entry dict recieved from Google Calendar API. Ignoring entry.")
+
+
+def reformat_timedelta(timedelta) -> str:
+    try:
+        obj = abs(timedelta.total_seconds())
+    except AttributeError:
+        raise ValueError("You must provide either a timedelta")
+
+    seconds = int(obj)
+
+    periods = [
+        ("Jahr", "Jahre", 60 * 60 * 24 * 365),
+        ("Monat", "Monate", 60 * 60 * 24 * 30),
+        ("Tag", "Tage", 60 * 60 * 24),
+        ("Stunde", "Stunden", 60 * 60),
+        ("Minute", "Minuten", 60),
+    ]
+    strings = []
+    for period_name, plural_period_name, period_seconds in periods:
+        if seconds >= period_seconds:
+            period_value, seconds = divmod(seconds, period_seconds)
+            if period_value == 0:
+                continue
+            unit = plural_period_name if period_value > 1 else period_name
+            strings.append(f"{period_value} {unit}")
+
+    return_string = ", ".join(strings)
+    if int(obj) < 60:
+        return_string = "weniger als 1 Minute"
+
+    return return_string
