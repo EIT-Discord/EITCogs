@@ -59,9 +59,9 @@ class GoogleCalendar:
             elif self.fallback_channel:
                 channel = self.fallback_channel
             else:
-                print(f'EITBOT: Could not find an appropriate channel for calendar entry "{entry.summary}"')
+                await self.eitcog.log(f'EITBOT: Could not find an appropriate channel for calendar entry "{entry.summary}"')
                 return
-            self.reminders.append(Reminder(self, entry, channel, self.timezone))
+            self.reminders.append(Reminder(self, entry, channel))
 
     async def update_reminders(self) -> None:
         for reminder in self.reminders:
@@ -152,13 +152,11 @@ class CalendarEntry:
 
 
 class Reminder:
-    def __init__(self, calendar: GoogleCalendar, entry: CalendarEntry, channel: discord.TextChannel,
-                 timezone: datetime.tzinfo):
+    def __init__(self, calendar: GoogleCalendar, entry: CalendarEntry, channel: discord.TextChannel):
 
         self.calendar = calendar
         self.entry = entry
         self.channel = channel
-        self.timezone = timezone
 
         self.id = self.entry.id
         self.updated = self.entry.updated
@@ -167,7 +165,7 @@ class Reminder:
         self.embed = self.entry.generate_embed()
 
     async def update(self) -> None:
-        now = datetime.datetime.now(self.timezone)
+        now = datetime.datetime.now(self.calendar.timezone)
 
         if self.entry.event_end <= now:
             await self.delete_message()
@@ -198,8 +196,8 @@ class Reminder:
     async def update_message(self) -> None:
         try:
             await self.message.edit(embed=self.embed)
-        except discord.NotFound:
-            pass
+        except discord.NotFound as error:
+            await self.calendar.eitcog.log(error)
 
     async def update_reminder(self, entry: CalendarEntry) -> None:
         self.entry = entry
@@ -207,7 +205,7 @@ class Reminder:
         await self.update()
 
     def set_embed_title(self) -> None:
-        time_until_event = self.entry.event_start - datetime.datetime.now(self.timezone)
+        time_until_event = self.entry.event_start - datetime.datetime.now(self.calendar.timezone)
         if time_until_event.total_seconds() > 0:
             preposition = 'in'
         else:

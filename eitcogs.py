@@ -15,7 +15,7 @@ from typing import List, Any
 
 from .userinput import UserInput, is_bool_expression, stop_keys
 from .calendar import GoogleCalendar
-from .setup import setup_dialog, semester_start_dialog
+from .setup import setup_dialog, semester_start_dialog, embed_group_select, group_selection
 from .utils import get_member, toggle_role, codeblock, get_obj_by_name
 from .configvalidator import validate
 
@@ -71,17 +71,20 @@ class EitCogs(commands.Cog):
         self.config.init_custom('Kalender', 1)
         self.config.register_custom('Kalender', **default_reminder)
 
-    def cog_check(self, ctx) -> bool:
+    async def log(self, error):
+        await self.channels['botlog'].send(error)
+
+    async def cog_check(self, ctx) -> bool:
         if self.guild is None:
-            self.parse_config()
+            await self.parse_config()
         return self.guild is not None
 
     async def on_member_join(self, member: discord.Member) -> None:
-        self.cog_check(None)
+        await self.cog_check(None)
         try:
             await asyncio.wait_for(self.pending_check(member), 86400)  # Timeout after 1 day
         except asyncio.exceptions.TimeoutError:
-            self.channels['botlog'].send(f'{member.display_name} wasn\'t verified after one day! Stopped checking pending status!')
+            await self.log(f'{member.display_name} wasn\'t verified after one day! Stopped checking pending status!')
         await setup_dialog(self, member)
 
     async def pending_check(self, member):
@@ -110,20 +113,20 @@ class EitCogs(commands.Cog):
 
         return commands.check(_is_admin)
 
-    def parse_config(self) -> None:
+    async def parse_config(self) -> None:
         # parse guild
         try:
             with open('./data/config.yml', 'r') as file:
                 config = validate(yaml.load(file, Loader=yaml.Loader))
         except FileNotFoundError:
-            print('EITBOT: No configuration file found')
+            await self.log('EITBOT: No configuration file found')
 
         for guild in self.bot.guilds:
             if config['server'] == guild.id:
                 self.guild = guild
                 break
         else:
-            print('EITBOT: The eitcog is not a member of the guild with the specified guild id')
+            await self.log('EITBOT: The eitcog is not a member of the guild with the specified guild id')
             return
 
         # parse roles
@@ -148,7 +151,7 @@ class EitCogs(commands.Cog):
             if channel:
                 new_semester.channel = channel
             else:
-                print(f'EITBOT: no announcement channel found for {new_semester}')
+                await self.log(f'EITBOT: no announcement channel found for {new_semester}')
 
             # parse semester groups
             for group_name in semester_group_names:
@@ -176,6 +179,14 @@ class EitCogs(commands.Cog):
         member = get_member(self.guild, context.author)
         await setup_dialog(self, member)
 
+    @commands.command()
+    async def change_group(self, context):
+        member = get_member(self.guild, context.author)
+        await context.author.send(embed=embed_group_select(member.display_name, self.semesters))
+        await group_selection(self, member)
+
+    @commands.admin()
+    @commands.command()
     async def semester_start(self, context: commands.context) -> None:
         member = get_member(self.guild, context.author)
         await semester_start_dialog(self, member)

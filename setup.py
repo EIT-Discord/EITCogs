@@ -43,12 +43,12 @@ def embed_semester_start(semesters: List) -> discord.Embed:
                           colour=discord.Colour(0x2fb923),
                           title="Semesterstart")
 
-    embed_group_select(embed, semesters)
+    _group_select(embed, semesters)
 
     return embed
 
 
-def embed_setup_group_select(name: str, semesters: List) -> discord.Embed:
+def embed_group_select(name: str, semesters: List) -> discord.Embed:
     embed = discord.Embed(description=f'Hallo **{name}**!\n'
                                       f'Antworte jetzt noch mit deiner Studiengruppe, '
                                       f'um dieses Setup abzuschließen. :keyboard: \n\n'
@@ -56,12 +56,12 @@ def embed_setup_group_select(name: str, semesters: List) -> discord.Embed:
                           colour=discord.Colour(0x2fb923),
                           title="Studiengruppen Auswahl")
 
-    embed_group_select(embed, semesters)
+    _group_select(embed, semesters)
 
     return embed
 
 
-def embed_group_select(embed, semesters: List) -> discord.Embed:
+def _group_select(embed, semesters: List) -> discord.Embed:
     # add known studygroups to embed
     for semester in semesters:
         group_string = ''
@@ -109,7 +109,7 @@ async def setup_dialog(eitcog, member: discord.Member) -> None:
     except discord.Forbidden:
         logging.info(f'could not asign new nickname to member "{answer}"')
 
-    await member.send(embed=embed_setup_group_select(answer, eitcog.semesters))
+    await member.send(embed=embed_group_select(answer, eitcog.semesters))
     await group_selection(eitcog, member)
 
 
