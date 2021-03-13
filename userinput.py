@@ -11,7 +11,14 @@ ongoing = []
 
 
 class UserInput:
-    def __init__(self, eitcog, user: [discord.User, discord.Member], channel: discord.TextChannel, test=False):
+    def __init__(self, eitcog, user: [discord.User, discord.Member], channel: discord.TextChannel):
+        """
+
+        :param eitcog:
+        :param user:
+        :param channel:
+        :param test:
+        """
         self.eitcog = eitcog
         self.user = user
         self.channel = channel
@@ -26,7 +33,15 @@ class UserInput:
 
     @classmethod
     async def userinput(cls, eitcog, user: [discord.User, discord.Member],
-                        channel: discord.TextChannel, only_content=False, test=False) -> Any:
+                        channel: discord.TextChannel, only_content=False) -> Any:
+        """
+
+        :param eitcog: the EITCogs Object
+        :param user: the user
+        :param channel:
+        :param only_content:
+        :return:
+        """
 
         new_ui = cls(eitcog, user, channel)
 
@@ -36,10 +51,7 @@ class UserInput:
                 ui.delete()
 
         ongoing.append(new_ui)
-        if test:
-            answer = test_message(eitcog)
-        else:
-            answer = await new_ui.queue.get()
+        answer = await new_ui.queue.get()
         new_ui.delete()
         if only_content:
             return answer.content
@@ -65,6 +77,18 @@ class UserInput:
 
 async def userinput_loop(eitcog, user, channel, filterfunc=None,
                          converter=None, max_repetitions=10, error_embed=None, **kwargs) -> Any:
+    """
+
+    :param eitcog:
+    :param user:
+    :param channel:
+    :param filterfunc:
+    :param converter:
+    :param max_repetitions:
+    :param error_embed:
+    :param kwargs:
+    :return:
+    """
     counter = 0
     while counter < (max_repetitions + 1):
         answer = await UserInput.userinput(eitcog, user, channel)

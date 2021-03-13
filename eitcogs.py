@@ -71,8 +71,14 @@ class EitCogs(commands.Cog):
         self.config.init_custom('Kalender', 1)
         self.config.register_custom('Kalender', **default_reminder)
 
-    async def log(self, error):
-        await self.channels['botlog'].send(error)
+    async def log(self, invoke, embed=None):
+        """
+
+        :param invoke:
+        :param embed:
+        :return:
+        """
+        await self.channels['botlog'].send(invoke, embed=embed)
 
     async def cog_check(self, ctx) -> bool:
         if self.guild is None:
@@ -179,8 +185,9 @@ class EitCogs(commands.Cog):
         member = get_member(self.guild, context.author)
         await setup_dialog(self, member)
 
-    @commands.command()
-    async def change_group(self, context):
+    @commands.command(aliases=['change group'])
+    async def changegroup(self, context):
+        """Startet einen Dialog zum Ändern der Gruppe"""
         member = get_member(self.guild, context.author)
         await context.author.send(embed=embed_group_select(member.display_name, self.semesters))
         await group_selection(self, member)
@@ -188,6 +195,7 @@ class EitCogs(commands.Cog):
     @commands.admin()
     @commands.command()
     async def semester_start(self, context: commands.context) -> None:
+        """Startet den Semesterstart Dialog --dev"""
         member = get_member(self.guild, context.author)
         await semester_start_dialog(self, member)
 
@@ -212,6 +220,7 @@ class EitCogs(commands.Cog):
     @commands.admin()
     @commands.command()
     async def poll(self, context: commands.context, channel: discord.TextChannel = None):
+        """Umfrageerstellung --dev"""
         await context.channel.send('Die Umfrage wird jetzt vorbereitet, gib deine Fragen im Dialog an!')
         poll = []
         while True:
@@ -277,6 +286,8 @@ class EitCogs(commands.Cog):
     @commands.command()
     async def start(self, ctx):
         """Startet eine Kalenderinstanz --dev"""
+        if self.calendar is not None:
+            return
         channel_mapping = {group.name: group.semester.channel for group in self.groups}
         self.calendar = GoogleCalendar(self, get_google_creds(),
 
@@ -286,6 +297,13 @@ class EitCogs(commands.Cog):
     @commands.admin()
     @commands.command()
     async def stop(self, ctx):
+        """Stoppt den Kalender --dev"""
+        self.calendar = None
+        await ctx.send('Kalender gestoppt!')
+
+    @commands.admin()
+    @commands.command()
+    async def clean_calender(self, ctx):
         """Stoppt den Kalender --dev"""
         self.calendar = None
         await ctx.send('Kalender gestoppt!')

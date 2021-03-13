@@ -10,6 +10,7 @@ import html2text as html2text
 import pytz
 from discord.ext import tasks
 
+from .utils import *
 
 class GoogleCalendar:
     """"""
@@ -59,7 +60,8 @@ class GoogleCalendar:
             elif self.fallback_channel:
                 channel = self.fallback_channel
             else:
-                await self.eitcog.log(f'EITBOT: Could not find an appropriate channel for calendar entry "{entry.summary}"')
+                await self.eitcog.log(
+                    f'EITBOT: Could not find an appropriate channel for calendar entry "{entry.summary}"')
                 return
             self.reminders.append(Reminder(self, entry, channel))
 
@@ -99,6 +101,9 @@ class GoogleCalendar:
                 yield calendar_info, entry
 
 
+
+
+
 class CalendarEntry:
     def __init__(self, raw_entry: Dict, timezone: pytz.timezone):
 
@@ -133,10 +138,25 @@ class CalendarEntry:
         if 'calendarColorId' in raw_entry:
             self.colour = discord.Colour(int(raw_entry['calendarColorId'].lstrip('#'), 16))
         else:
-            self.colour = discord.Colour(0x000000)
+            self.colour = discord.Colour(0xFFFFFF)
+        prof_regexp = re.compile('(?<=\[).+?(?=\])')
+        try:
+            prof_name = prof_regexp.search(self.summary).group(0).lower(). \
+                replace('ä', 'ae').replace('ö', 'oe').replace('ü', 'ue').replace('ß', 'ss')
+            if prof_name in embed_links.keys():
+                self.url = embed_links[prof_name]
+            else:
+                self.url = f"https://w3-mediapool.hm.edu/mediapool/media/fk04/fk04_lokal/professoren_4/" \
+                           f"{prof_name}/{prof_name}_ContactBild.jpg"
+        except Exception as e:
+            print(f'{e}: Could not load calendarimage!')
 
     def generate_embed(self) -> discord.Embed:
         embed = discord.Embed(description=self.description, colour=self.colour)
+        try:
+            embed.set_thumbnail(url=self.url)
+        except Exception as e:
+            print(e)
 
         if self.location:
             embed.add_field(name="Ort / URL", value=self.location, inline=False)
@@ -197,7 +217,7 @@ class Reminder:
         try:
             await self.message.edit(embed=self.embed)
         except discord.NotFound as error:
-            await self.calendar.eitcog.log(error)
+            await self.calendar.eitcog.log(f'Konnte die Nachricht nicht updaten', self.embed)
 
     async def update_reminder(self, entry: CalendarEntry) -> None:
         self.entry = entry
@@ -212,15 +232,6 @@ class Reminder:
             preposition = 'seit'
         self.embed.title = f'**{self.entry.calendar_name}**:  ' \
                            f'{self.entry.summary} {preposition} {reformat_timedelta(timedelta=time_until_event)}!'
-        prof_regexp = re.compile('(?<=\[).+?(?=\])')
-        try:
-            prof_name = prof_regexp.search(self.entry.summary).group(0).lower(). \
-                replace('ä', 'ae').replace('ö', 'oe').replace('ü', 'ue').replace('ß', 'ss')
-            self.embed.set_thumbnail(url=f"https://w3-mediapool.hm.edu/mediapool/media/fk04/fk04_lokal/professoren_4/"
-                                         f"{prof_name}/{prof_name}_ContactBild.jpg")
-
-        except Exception as e:
-            print(e)
 
 
 def parse_remind_time(raw_entry: Dict, timezone: datetime.tzinfo):
@@ -250,9 +261,9 @@ def reformat_timedelta(timedelta) -> str:
     seconds = int(obj)
 
     periods = [
-        ("Jahr", "Jahre", 60 * 60 * 24 * 365),
-        ("Monat", "Monate", 60 * 60 * 24 * 30),
-        ("Tag", "Tage", 60 * 60 * 24),
+        ("Jahr", "Jahren", 60 * 60 * 24 * 365),
+        ("Monat", "Monaten", 60 * 60 * 24 * 30),
+        ("Tag", "Tagen", 60 * 60 * 24),
         ("Stunde", "Stunden", 60 * 60),
         ("Minute", "Minuten", 60),
     ]
@@ -270,3 +281,13 @@ def reformat_timedelta(timedelta) -> str:
         return_string = "weniger als 1 Minute"
 
     return return_string
+
+embed_links = {
+    'striegler': 'https://w3-mediapool.hm.edu/mediapool/media/fk04/fk04_lokal/professoren_4/striegler/me_ContactBild.jpg',
+    'zuccaro': 'https://w3-mediapool.hm.edu/mediapool/media/fk04/fk04_lokal/professoren_4/zuccaro/zuccaro1_ContactBild.jpg',
+    'rosehr': 'https://w3-mediapool.hm.edu/mediapool/media/fk04/fk04_lokal/professoren_4/rosehr/Rosehr.jpg',
+    'galek': 'https://w3-mediapool.hm.edu/mediapool/media/fk04/fk04_lokal/professoren_4/galek/Galek.jpg',
+    'unterricker': 'https://w3-mediapool.hm.edu/mediapool/media/fk04/fk04_lokal/professoren_4/unterricker/Unterricker.jpg',
+    'hiebel': 'https://w3-mediapool.hm.edu/mediapool/media/fk04/fk04_lokal/professoren_4/hiebel/45050_2_klein.jpg',
+    'muenker': 'https://w3-mediapool.hm.edu/mediapool/media/fk04/fk04_lokal/professoren_4/muenker/muenker_2.jpg'
+    }
