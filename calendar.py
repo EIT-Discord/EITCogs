@@ -12,6 +12,7 @@ from discord.ext import tasks
 
 from .utils import *
 
+
 class GoogleCalendar:
     """"""
 
@@ -99,9 +100,6 @@ class GoogleCalendar:
                                                   singleEvents=True, orderBy='startTime').execute()
             for entry in calendar['items']:
                 yield calendar_info, entry
-
-
-
 
 
 class CalendarEntry:
@@ -282,6 +280,7 @@ def reformat_timedelta(timedelta) -> str:
 
     return return_string
 
+
 embed_links = {
     'striegler': 'https://w3-mediapool.hm.edu/mediapool/media/fk04/fk04_lokal/professoren_4/striegler/me_ContactBild.jpg',
     'zuccaro': 'https://w3-mediapool.hm.edu/mediapool/media/fk04/fk04_lokal/professoren_4/zuccaro/zuccaro1_ContactBild.jpg',
@@ -289,5 +288,6 @@ embed_links = {
     'galek': 'https://w3-mediapool.hm.edu/mediapool/media/fk04/fk04_lokal/professoren_4/galek/Galek.jpg',
     'unterricker': 'https://w3-mediapool.hm.edu/mediapool/media/fk04/fk04_lokal/professoren_4/unterricker/Unterricker.jpg',
     'hiebel': 'https://w3-mediapool.hm.edu/mediapool/media/fk04/fk04_lokal/professoren_4/hiebel/45050_2_klein.jpg',
-    'muenker': 'https://w3-mediapool.hm.edu/mediapool/media/fk04/fk04_lokal/professoren_4/muenker/muenker_2.jpg'
-    }
+    'muenker': 'https://w3-mediapool.hm.edu/mediapool/media/fk04/fk04_lokal/professoren_4/muenker/muenker_2.jpg',
+    'stehr': 'https://www.hallo-muenchen.de/bilder/2019/10/16/13120679/275521894-online_super-prof-3ya7.jpg'
+}

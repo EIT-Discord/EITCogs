@@ -23,7 +23,6 @@ class UserInput:
         self.user = user
         self.channel = channel
         self.queue = asyncio.Queue()
-        self.test = test
 
         eitcog.bot.add_listener(self.on_message)
 
