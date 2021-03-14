@@ -45,10 +45,6 @@ def get_google_creds(creds: Any = None) -> Any:
 
 
 class EitCogs(commands.Cog):
-    """
-    A short description of the cog.
-    """
-
     def __init__(self, bot: Red, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.bot = bot
@@ -66,18 +62,16 @@ class EitCogs(commands.Cog):
         self.semesters = []
         self.groups = []
         self.calendar = None
+
         self.bot.add_listener(self.on_member_join)
 
         self.config.init_custom('Kalender', 1)
         self.config.register_custom('Kalender', **default_reminder)
 
-    async def log(self, invoke, embed=None):
-        """
+    def __del__(self):
+        print('EITCogs wurde garbage collected')
 
-        :param invoke:
-        :param embed:
-        :return:
-        """
+    async def log(self, invoke, embed=None):
         await self.channels['botlog'].send(invoke, embed=embed)
 
     async def cog_check(self, ctx) -> bool:
@@ -286,20 +280,21 @@ class EitCogs(commands.Cog):
     @commands.command()
     async def start(self, ctx):
         """Startet eine Kalenderinstanz --dev"""
-        if self.calendar is not None:
-            return
-        channel_mapping = {group.name: group.semester.channel for group in self.groups}
-        self.calendar = GoogleCalendar(self, get_google_creds(),
 
-                                       channel_mapping, fallback_channel=self.channels['kalender'])
+        channel_mapping = {group.name: group.semester.channel for group in self.groups}
+        self.calendar = GoogleCalendar(self, get_google_creds(), channel_mapping, fallback_channel=self.channels['kalender'])
         await ctx.send('Kalender gestartet!')
 
     @commands.admin()
     @commands.command()
     async def stop(self, ctx):
         """Stoppt den Kalender --dev"""
-        self.calendar = None
-        await ctx.send('Kalender gestoppt!')
+        from .calendar import active_calendar
+        if active_calendar:
+            await active_calendar.stop()
+            await ctx.send('Kalender gestoppt!')
+        else:
+            await ctx.send('Kalender ist nicht gestartet!')
 
     @commands.admin()
     @commands.command()

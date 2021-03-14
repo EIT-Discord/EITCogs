@@ -1,11 +1,11 @@
 import asyncio
 import datetime
 import re
+import sys
 from typing import Dict, List, Any
 
 from googleapiclient.discovery import build
 import dateutil.parser
-import discord
 import html2text as html2text
 import pytz
 from discord.ext import tasks
@@ -13,12 +13,16 @@ from discord.ext import tasks
 from .utils import *
 
 
-class GoogleCalendar:
-    """"""
+active_calendar = None
 
+
+class GoogleCalendar:
     def __init__(self, eitcog, credentials: Any, channel_mapping: Any,
                  fallback_channel: discord.TextChannel = None,
                  refresh_interval: int = 60, timezone: str = 'Europe/Berlin'):
+        global active_calendar
+        if active_calendar:
+            return
 
         self.eitcog = eitcog
         self.timezone = pytz.timezone(timezone)
@@ -34,7 +38,12 @@ class GoogleCalendar:
         self.update_reminders = tasks.loop(seconds=20)(self.update_reminders)
         self.update_reminders.start()
 
+        active_calendar = self
+
     async def refresh(self) -> None:
+        global active_calendar
+        active_calendar = self
+
         # Fetch the next 5 entries per calendar
         loop = asyncio.get_running_loop()
         raw_entries = await loop.run_in_executor(None, self.fetch_entries)
@@ -66,7 +75,22 @@ class GoogleCalendar:
                 return
             self.reminders.append(Reminder(self, entry, channel))
 
+    def __del__(self):
+        print('Kalender wurde Garbage collected')
+
+    async def stop(self):
+        global active_calendar
+        self.update_reminders.cancel()
+        self.refresh.cancel()
+        active_calendar = None
+
+        for reminder in self.reminders:
+            await reminder.delete_message()
+
     async def update_reminders(self) -> None:
+        global active_calendar
+        active_calendar = self
+
         for reminder in self.reminders:
             await reminder.update()
 
@@ -204,6 +228,8 @@ class Reminder:
         self.calendar.active_reminders.update({self.message.id: (self.message, self.entry)})
 
     async def delete_message(self) -> None:
+        if not self.message:
+            return
         try:
             await self.message.delete()
         except discord.NotFound:
@@ -214,7 +240,7 @@ class Reminder:
     async def update_message(self) -> None:
         try:
             await self.message.edit(embed=self.embed)
-        except discord.NotFound as error:
+        except discord.NotFound:
             await self.calendar.eitcog.log(f'Konnte die Nachricht nicht updaten', self.embed)
 
     async def update_reminder(self, entry: CalendarEntry) -> None:
