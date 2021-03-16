@@ -235,10 +235,9 @@ class Reminder:
             return
         try:
             await self.message.delete()
+            self.calendar.active_reminders.pop(self.message.id)
         except discord.NotFound:
             pass
-        finally:
-            self.calendar.active_reminders.pop(self.message.id)
 
     async def update_message(self) -> None:
         try:
@@ -318,5 +317,9 @@ embed_links = {
     'unterricker': 'https://w3-mediapool.hm.edu/mediapool/media/fk04/fk04_lokal/professoren_4/unterricker/Unterricker.jpg',
     'hiebel': 'https://w3-mediapool.hm.edu/mediapool/media/fk04/fk04_lokal/professoren_4/hiebel/45050_2_klein.jpg',
     'muenker': 'https://w3-mediapool.hm.edu/mediapool/media/fk04/fk04_lokal/professoren_4/muenker/muenker_2.jpg',
-    'stehr': 'https://www.hallo-muenchen.de/bilder/2019/10/16/13120679/275521894-online_super-prof-3ya7.jpg'
+    'stehr': 'https://www.hallo-muenchen.de/bilder/2019/10/16/13120679/275521894-online_super-prof-3ya7.jpg',
+    'gerstner': 'https://w3-mediapool.hm.edu/mediapool/media/fk04/fk04_lokal/professoren_4/gerstner/gerstner1_ContactBild.jpg',
+    'ressel': 'https://external-content.duckduckgo.com/iu/?u=http%3A%2F%2Fw3-mediapool.hm.edu%2Fmediapool%2Fmedia%2Ffk04%2Ffk04_lokal%2Fprofessoren_4%2Fressel%2Fressel.jpg&f=1&nofb=1',
+    'muehlbauer': 'https://w3-mediapool.hm.edu/mediapool/media/fk04/fk04_lokal/professoren_4/muehlbauer/Muehlbauer.jpg',
+    'hecker': 'https://w3-mediapool.hm.edu/mediapool/media/fk04/fk04_lokal/professoren_4/hecker/SH_web_ContactBild.jpg'
 }
