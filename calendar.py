@@ -35,7 +35,7 @@ class GoogleCalendar:
         self.refresh = tasks.loop(seconds=refresh_interval)(self.refresh)
         self.refresh.start()
 
-        self.update_reminders = tasks.loop(seconds=20)(self.update_reminders)
+        self.update_reminders = tasks.loop(seconds=60)(self.update_reminders)
         self.update_reminders.start()
 
         active_calendar = self
@@ -64,16 +64,19 @@ class GoogleCalendar:
 
         # Got new events
         for entry in entries:
-            group_name, course_name = entry.calendar_name.split('-')
-            if group_name in self.channel_mapping:
-                channel = self.channel_mapping[group_name]
-            elif self.fallback_channel:
-                channel = self.fallback_channel
-            else:
-                await self.eitcog.log(
-                    f'EITBOT: Could not find an appropriate channel for calendar entry "{entry.summary}"')
-                return
-            self.reminders.append(Reminder(self, entry, channel))
+            try:
+                group_name, course_name = entry.calendar_name.split('-')
+                if group_name in self.channel_mapping:
+                    channel = self.channel_mapping[group_name]
+                elif self.fallback_channel:
+                    channel = self.fallback_channel
+                else:
+                    await self.eitcog.log(
+                        f'EITBOT: Could not find an appropriate channel for calendar entry "{entry.summary}"')
+                    return
+                self.reminders.append(Reminder(self, entry, channel))
+            except ValueError:
+                pass
 
     def __del__(self):
         print('Kalender wurde Garbage collected')
