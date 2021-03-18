@@ -102,17 +102,6 @@ class EitCogs(commands.Cog):
 
         return commands.check(_is_student)
 
-    def is_admin(self) -> bool:
-        """Checks if the member who invoked the command has administrator permissions on this server"""
-
-        async def _is_admin(context: commands.context):
-            try:
-                return self.roles['Admin'] in context.author.roles
-            except AttributeError:
-                return False
-
-        return commands.check(_is_admin)
-
     async def parse_config(self) -> None:
         # parse guild
         try:

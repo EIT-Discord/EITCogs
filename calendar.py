@@ -1,7 +1,6 @@
 import asyncio
 import datetime
 import re
-import sys
 from typing import Dict, List, Any
 
 from googleapiclient.discovery import build
